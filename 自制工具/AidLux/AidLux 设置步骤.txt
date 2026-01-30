@@ -397,6 +397,10 @@ sudo dpkg-reconfigure locales
 sudo apt install fonts-wqy-zenhei
 重启后登录界面和桌面应显示为中文
 
+======= XFCE4桌面上使用 FireFox浏览器出错时的解决方法
+pkill -f firefox
+MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GMP_SANDBOX=1 firefox --no-remote
+
 
 ======= 下面的不用管，是临时修改用的。
 sudo rm ./vncserver.sh
