@@ -106,5 +106,20 @@ nano /boot/config.txt
 在文件中找到并确保包含以下行（如果不存在则手动添加）：
 
 dtparam=spi=on
+dtparam=i2c_arm=on
+# 如果需要同时启用 I2C-0（较少使用），可添加：
+# dtparam=i2c_vc=on
+
+# 加载模块
+modprobe i2c-dev
+modprobe i2c-bcm2835
+# 设置开机自动加载
+echo "i2c-dev" >> /etc/modules
+echo "i2c-bcm2835" >> /etc/modules
+
+# 检查是否存在 I2C 设备节点
+ls /dev/i2c* 2>/dev/null
+# 检查 I2C 内核模块是否已加载
+lsmod | grep -i i2c
 
 apk add linux-headers

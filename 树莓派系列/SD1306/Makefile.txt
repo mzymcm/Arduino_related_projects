@@ -1,0 +1,18 @@
+CC = gcc
+CFLAGS = -Wall -O2
+LIBS = -lm
+TARGET = display_ip
+SOURCES = display_ip.c
+
+all: $(TARGET)
+
+$(TARGET): $(SOURCES)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCES) $(LIBS)
+
+clean:
+	rm -f $(TARGET)
+
+install: $(TARGET)
+	sudo cp $(TARGET) /usr/local/bin/
+
+.PHONY: all clean install
