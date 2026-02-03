@@ -1,0 +1,110 @@
+#   cmdline.txt    文件
+console=serial0,115200
+
+
+#   vi /etc/network/interfaces	文件
+auto lo
+iface lo inet loopback
+auto wlan0
+iface wlan0 inet dhcp
+    hostname $(hostname)
+    pre-up ip link set wlan0 up
+    wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf
+
+
+#   setup-interfaces  设置完后再编辑保存
+#   mkdir /etc/wpa_supplicant
+#   vi /etc/wpa_supplicant/wpa_supplicant.conf	文件
+network={
+    ssid="AlxaTax-2"
+    psk="alssw0483"
+    priority=1
+}
+network={
+        ssid="mzytest"
+        psk=a3e748cecb3640c084aeed46ce06a507c93b732ae414ef6641d2bd7ef1a39baf
+}
+
+
+
+
+/etc/init.d/networking stop
+/etc/init.d/networking restart
+
+
+
+# 1. 确保使用正确的软件源
+cat > /etc/apk/repositories << EOF
+https://mirrors.aliyun.com/alpine/v3.19/main
+https://mirrors.aliyun.com/alpine/v3.19/community
+EOF
+
+
+
+apk update
+
+apk add e2fsprogs
+
+mkfs.vfat -F 32 /dev/mmcblk0p1
+mkfs.ext4 /dev/mmcblk0p2
+
+# 2. 挂载分区
+mount /dev/mmcblk0p2 /mnt
+mkdir -p /mnt/boot
+mount /dev/mmcblk0p1 /mnt/boot
+
+
+
+apk add linux-rpi
+
+setup-disk -v -m sys /mnt
+
+
+ls /mnt
+
+如果看到bin、etc、lib等目录，说明系统已经安装到/mnt。
+
+apk cache clean
+
+暂时解决系统时间问题。
+date -s "2026-02-03 10:37:00"
+
+==== 解决方案
+apk add chrony
+rc-service chronyd start
+rc-update add chronyd default
+
+chronyc makestep	强制同步	立即纠正大偏差，输出 “200 OK”。
+
+
+
+
+
+
+nano 编辑器打开SSH配置文件：
+nano /etc/ssh/sshd_config
+
+PermitRootLogin yes
+
+保存后，强烈建议检查配置文件语法是否正确，避免输入错误导致SSH服务无法启动：
+sshd -t
+
+重启SSH服务使配置生效
+rc-service sshd restart
+
+apk update
+apk upgrade
+lbu commit -p
+
+
+
+
+配置设备树以启用 SPI 控制器
+这是最关键的一步。编辑树莓派的引导配置文件：
+
+nano /boot/config.txt
+在文件中找到并确保包含以下行（如果不存在则手动添加）：
+
+dtparam=spi=on
+
+apk add linux-headers
