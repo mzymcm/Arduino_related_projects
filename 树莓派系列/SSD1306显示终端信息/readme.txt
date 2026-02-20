@@ -127,3 +127,38 @@ sudo rmmod ssd1306_fb
 sudo insmod ssd1306_fb.ko swap_bit_order=1
 # 重新绑定设备
 sudo sh -c 'echo ssd1306_fb 0x3c > /sys/bus/i2c/devices/i2c-1/new_device'
+
+
+
+
+
+# 解除绑定
+echo 1-003c > /sys/bus/i2c/drivers/ssd1306_fb/unbind
+
+# 全屏白色（正确的方式）
+sudo sh -c "tr '\000' '\377' < /dev/zero | dd of=/dev/fb1 bs=1024 count=1 2>/dev/null"
+# 全屏黑色（正确的方式）
+sudo dd if=/dev/zero of=/dev/fb1 bs=1024 count=1 2>/dev/null
+
+# 将 fb1 绑定到控制台 2
+sudo con2fbmap 1 1   # 第一个 1 表示 fb1，第二个 1 表示 tty2
+# 然后切换到 tty2（Ctrl+Alt+F2），看是否有光标
+
+
+
+sudo cp /root/sd1306/ssd1306_fb.ko /lib/modules/$(uname -r)/extra/
+sudo depmod -a
+
+[Unit]
+Description=SSD1306 framebuffer setup
+After=local-fs.target systemd-modules-load.service
+Before=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStartPre=/sbin/modprobe i2c-dev
+ExecStart=/bin/sh -c 'insmod /root/sd1306/ssd1306_fb.ko && if [ ! -e /sys/bus/i2c/devices/1-003c ]; then echo ssd1306_fb 0x3c > /sys/bus/i2c/devices/i2c-1/new_device; fi'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
