@@ -1,3 +1,6 @@
+sudo apt install build-essential git linux-headers-$(uname -r)
+
+
 1. 查看当前已加载模块
 lsmod | grep ssd1306
 
