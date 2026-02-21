@@ -1,0 +1,76 @@
+cat > /tmp/fb-draw.c << 'EOF'
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <linux/fb.h>
+#include <sys/mman.h>
+#include <sys/ioctl.h>
+#include <string.h>
+
+int main() {
+    int fbfd = open("/dev/fb1", O_RDWR);
+    if (fbfd < 0) { perror("open /dev/fb1"); return 1; }
+
+    struct fb_var_screeninfo vinfo;
+    struct fb_fix_screeninfo finfo;
+    if (ioctl(fbfd, FBIOGET_VSCREENINFO, &vinfo) < 0) { perror("ioctl"); close(fbfd); return 1; }
+    if (ioctl(fbfd, FBIOGET_FSCREENINFO, &finfo) < 0) { perror("ioctl"); close(fbfd); return 1; }
+
+    printf("分辨率: %dx%d, 每行字节数: %d\n", vinfo.xres, vinfo.yres, finfo.line_length);
+
+    size_t screensize = vinfo.yres * finfo.line_length;
+    unsigned char *fbp = mmap(NULL, screensize, PROT_READ | PROT_WRITE, MAP_SHARED, fbfd, 0);
+    if (fbp == MAP_FAILED) { perror("mmap"); close(fbfd); return 1; }
+
+    // 清屏
+    memset(fbp, 0, screensize);
+
+    // 画水平线在 y=32 处（全宽）
+    for (int x = 0; x < vinfo.xres; x++) {
+        int byte_off = 32 * finfo.line_length + x / 8;
+        int bit = 7 - (x % 8);   // 假设MSB first，若不对可调整
+        fbp[byte_off] |= (1 << bit);
+    }
+
+    // 画垂直线在 x=64 处（全高）
+    for (int y = 0; y < vinfo.yres; y++) {
+        int byte_off = y * finfo.line_length + 64 / 8;
+        int bit = 7 - (64 % 8);
+        fbp[byte_off] |= (1 << bit);
+    }
+
+    // 在四个角画点：
+    // 左上角 (0,0)
+    fbp[0] |= (1 << 7);  // 假设第一个字节的最高位
+
+    // 右上角 (127,0)
+    int x = 127, y = 0;
+    int byte_off = y * finfo.line_length + x/8;
+    int bit = 7 - (x % 8);
+    fbp[byte_off] |= (1 << bit);
+
+    // 左下角 (0,63)
+    x = 0; y = 63;
+    byte_off = y * finfo.line_length + x/8;
+    bit = 7 - (x % 8);
+    fbp[byte_off] |= (1 << bit);
+
+    // 右下角 (127,63)
+    x = 127; y = 63;
+    byte_off = y * finfo.line_length + x/8;
+    bit = 7 - (x % 8);
+    fbp[byte_off] |= (1 << bit);
+
+    printf("图案已绘制，请观察屏幕上的十字和四个角点。\n");
+    printf("按回车键退出程序，屏幕将清空。\n");
+    getchar();
+
+    munmap(fbp, screensize);
+    close(fbfd);
+    return 0;
+}
+EOF
+
+gcc -o /tmp/fb-draw /tmp/fb-draw.c
+sudo /tmp/fb-draw
