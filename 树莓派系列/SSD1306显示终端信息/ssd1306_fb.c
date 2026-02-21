@@ -5,6 +5,7 @@
  *
  * Author: Combined from various sources, adapted for 6.12 kernel
  * Modified: Page mode, dual bit-order control, fb memory cleared, custom mmap
+ * Optimized: Configuration macros for easy customization, corrected orientation
  */
 
 #include <linux/module.h>
@@ -31,7 +32,46 @@
 #define SSD1306_PAGES       8               // 64 / 8
 #define SSD1306_FB_SIZE     1024             // 128 * 64 / 8
 
-/* I2C commands */
+/* ==================== Configuration Macros ==================== */
+/* Modify these macros before compiling to customize the driver behavior.
+   Refer to SSD1306 datasheet for possible values. */
+
+/* Segment remap: 0xA0 = normal (column 0 mapped to SEG0), 0xA1 = horizontal mirror */
+#define SSD1306_CONFIG_SEGREMAP     0xA0    /* Normal (disable global mirror) */
+
+/* COM scan direction: 0xC0 = normal (COM0 to COM63), 0xC8 = reverse (COM63 to COM0) */
+#define SSD1306_CONFIG_COMSCAN      0xC0    /* Normal scan: framebuffer y=0 = screen top */
+
+/* Charge pump setting: 0x14 = enable, 0x10 = disable */
+#define SSD1306_CONFIG_CHARGEPUMP   0x14
+
+/* Contrast value (0x00 to 0xFF) */
+#define SSD1306_CONFIG_CONTRAST     0x7F
+
+/* Display clock divide ratio / oscillator frequency (default 0x80) */
+#define SSD1306_CONFIG_CLOCKDIV     0x80
+
+/* Multiplex ratio: for 64 rows, use 0x3F */
+#define SSD1306_CONFIG_MULTIPLEX    0x3F
+
+/* Display offset (vertical shift) */
+#define SSD1306_CONFIG_OFFSET       0x00
+
+/* COM pins hardware configuration (0x12 for typical 128x64) */
+#define SSD1306_CONFIG_COMPINS      0x12
+
+/* Pre-charge period (default 0xF1) */
+#define SSD1306_CONFIG_PRECHARGE    0xF1
+
+/* VCOMH deselect level (default 0x20) */
+#define SSD1306_CONFIG_VCOMDETECT   0x20
+
+/* Memory mode: 0x00 = horizontal, 0x01 = vertical, 0x10 = page (used here) */
+#define SSD1306_CONFIG_MEMORYMODE   0x10
+
+/* =============================================================== */
+
+/* I2C commands (standard definitions, not meant to be changed) */
 #define SSD1306_SETCONTRAST         0x81
 #define SSD1306_DISPLAYALLON_RESUME 0xA4
 #define SSD1306_DISPLAYALLON        0xA5
@@ -51,12 +91,15 @@
 #define SSD1306_MEMORYMODE          0x20
 #define SSD1306_COLUMNADDR          0x21
 #define SSD1306_PAGEADDR            0x22
-#define SSD1306_COMSCANINC          0xC0
-#define SSD1306_COMSCANDEC          0xC8
-#define SSD1306_SEGREMAP             0xA1
 #define SSD1306_CHARGEPUMP          0x8D
 #define SSD1306_EXTERNALVCC         0x01
 #define SSD1306_SWITCHCAPVCC        0x02
+
+/* Orientation commands (optional, for reference) */
+#define SSD1306_SEGREMAP_NORMAL      0xA0
+#define SSD1306_SEGREMAP_MIRROR      0xA1
+#define SSD1306_COMSCAN_NORMAL       0xC0
+#define SSD1306_COMSCAN_REVERSE      0xC8
 
 /* Module parameters */
 static bool swap_bit_order = false;
@@ -152,24 +195,23 @@ static int ssd1306_write_data(struct ssd1306_device *ssd1306, u8 *data, int len)
     return 0;
 }
 
-/* OLED hardware initialization */
+/* OLED hardware initialization - now using configuration macros */
 static int ssd1306_hw_init(struct ssd1306_device *ssd1306)
 {
     u8 cmds[] = {
         SSD1306_DISPLAYOFF,
-        SSD1306_SETDISPLAYCLOCKDIV, 0x80,
-        SSD1306_SETMULTIPLEX, 0x3F,  // 64 MUX
-        SSD1306_SETDISPLAYOFFSET, 0x00,
+        SSD1306_SETDISPLAYCLOCKDIV, SSD1306_CONFIG_CLOCKDIV,
+        SSD1306_SETMULTIPLEX, SSD1306_CONFIG_MULTIPLEX,
+        SSD1306_SETDISPLAYOFFSET, SSD1306_CONFIG_OFFSET,
         SSD1306_SETSTARTLINE | 0x00,
-        SSD1306_CHARGEPUMP, 0x14,    // Enable charge pump
-        /* Use page addressing mode (0x10) to match per-page updates */
-        SSD1306_MEMORYMODE, 0x10,    // Page addressing mode
-        SSD1306_SEGREMAP,            // 0xA1 (mirror as per user confirmation)
-        SSD1306_COMSCANDEC,          // 0xC8 (scan from COM63 to COM0)
-        SSD1306_SETCOMPINS, 0x12,     // Disable COM left/right remap
-        SSD1306_SETCONTRAST, 0x7F,
-        SSD1306_SETPRECHARGE, 0xF1,
-        SSD1306_SETVCOMDETECT, 0x20,
+        SSD1306_CHARGEPUMP, SSD1306_CONFIG_CHARGEPUMP,
+        SSD1306_MEMORYMODE, SSD1306_CONFIG_MEMORYMODE,
+        SSD1306_CONFIG_SEGREMAP,
+        SSD1306_CONFIG_COMSCAN,
+        SSD1306_SETCOMPINS, SSD1306_CONFIG_COMPINS,
+        SSD1306_SETCONTRAST, SSD1306_CONFIG_CONTRAST,
+        SSD1306_SETPRECHARGE, SSD1306_CONFIG_PRECHARGE,
+        SSD1306_SETVCOMDETECT, SSD1306_CONFIG_VCOMDETECT,
         SSD1306_DISPLAYALLON_RESUME,
         SSD1306_NORMALDISPLAY,
         SSD1306_DISPLAYON
@@ -520,5 +562,5 @@ module_exit(ssd1306_fb_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Combined from various sources");
-MODULE_DESCRIPTION("SSD1306 I2C Framebuffer Driver");
-MODULE_VERSION("2.0");
+MODULE_DESCRIPTION("SSD1306 I2C Framebuffer Driver - Configurable");
+MODULE_VERSION("2.3");

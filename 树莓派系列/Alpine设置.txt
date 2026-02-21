@@ -110,6 +110,12 @@ dtparam=i2c_arm=on
 # 如果需要同时启用 I2C-0（较少使用），可添加：
 # dtparam=i2c_vc=on
 
+
+
+
+#####  实现 framebuffer 的I2C屏幕的输出显示
+
+
 # 加载模块
 modprobe i2c-dev
 modprobe i2c-bcm2835
@@ -125,32 +131,6 @@ lsmod | grep -i i2c
 apk add linux-headers
 apk add linux-rpi-dev
 apk add build-base
-
-
-
-
-1. 卸载当前模块并清除旧日志
-sudo rmmod ssd1306_fb 2>/dev/null
-sudo dmesg -c > /dev/null   # 清除内核环形缓冲区，方便只看新日志
-2. 重新加载模块（带上参数）
-sudo insmod ssd1306_fb.ko swap_bit_order=1
-3. 查看内核日志
-dmesg
-
-
-
-nano /etc/apk/repositories
-
-https://dl-cdn.alpinelinux.org/alpine/v3.23/main
-https://dl-cdn.alpinelinux.org/alpine/v3.23/community
-
-cp ssd1306_fb.ko /lib/modules/$(uname -r)/kernel/drivers/video/
-
-sh -c 'echo ssd1306_fb 0x3c > /sys/bus/i2c/devices/i2c-1/new_device'
-
-echo "options ssd1306_fb swap_bit_order=1" | tee /etc/modprobe.d/ssd1306_fb.conf
-
-echo "ssd1306_fb" | tee -a /etc/modules
 
 
 cd ~/sd1306
@@ -225,29 +205,3 @@ nano /boot/cmdline.txt
 fbcon=map:1
 或 fbcon=map:1,rotate:2
 
-
-
-
-
-
-##############   代码中的参数说明
-
-1、显示方向与扫描
-SSD1306_SEGREMAP (0xA1)
-段重映射：控制列地址与物理 SEG 引脚的对应关系。
-
-0xA0：列地址 0 映射到 SEG0（正常水平方向）
-
-0xA1：列地址 0 映射到 SEG127（水平镜像）
-你的驱动中定义为 0xA1，表示已启用水平镜像。
-
-SSD1306_COMSCANINC (0xC0) / SSD1306_COMSCANDEC (0xC8)
-设置 COM 扫描方向：
-
-0xC0：从 COM0 到 COM63（正常垂直方向，行从上到下）
-
-0xC8：从 COM63 到 COM0（垂直翻转，行从下到上）
-你提供的定义中 COMSCANINC 为 0xC0，COMSCANDEC 为 0xC8，但实际使用时通常只用一个。
-
-SSD1306_SETSTARTLINE (0x40)
-设置显示起始行（0~63），通常为 0x40 表示从第 0 行开始。
