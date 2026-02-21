@@ -164,6 +164,11 @@ rmmod ssd1306_fb
 insmod ssd1306_fb.ko
 ##  或   insmod ssd1306_fb.ko swap_bit_order=1
 
+##### 将模块名添加到 /etc/modules 文件：
+echo "ssd1306_fb" | tee -a /etc/modules
+##### 如果需要传递参数（如 swap_bit_order=1），创建 /etc/modprobe.d/ssd1306_fb.conf：
+echo "options ssd1306_fb swap_bit_order=1" | tee /etc/modprobe.d/ssd1306_fb.conf
+
 sh -c 'echo ssd1306_fb 0x3c > /sys/bus/i2c/devices/i2c-1/new_device'
 i2cdetect -y 1	# 应显示 UU
 ls /dev/fb*	# 应出现 /dev/fb1
@@ -182,11 +187,6 @@ dd if=/dev/zero of=/dev/fb1 bs=1024 count=0 2>/dev/null
 # 左上角是否有一个白点
 printf '\x01' | dd of=/dev/fb1 bs=1 seek=0 count=1 conv=notrunc 2>/dev/null
 
-
-##### 将模块名添加到 /etc/modules 文件：
-echo "ssd1306_fb" | tee -a /etc/modules
-##### 如果需要传递参数（如 swap_bit_order=1），创建 /etc/modprobe.d/ssd1306_fb.conf：
-echo "options ssd1306_fb swap_bit_order=1" | tee /etc/modprobe.d/ssd1306_fb.conf
 
 
 ##### 创建 /etc/local.d/ssd1306.start 文件：
