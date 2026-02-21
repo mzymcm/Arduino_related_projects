@@ -154,7 +154,7 @@ echo "ssd1306_fb" | tee -a /etc/modules
 
 
 cd ~/sd1306
-
+nano ssd1306_fb.c
 make clean
 make
 # 卸载模块
@@ -178,6 +178,9 @@ sh -c "tr '\000' '\377' < /dev/zero | dd of=/dev/fb1 bs=1024 count=1 2>/dev/null
 
 # 全屏黑色
 dd if=/dev/zero of=/dev/fb1 bs=1024 count=0 2>/dev/null
+
+# 左上角是否有一个白点
+printf '\x01' | dd of=/dev/fb1 bs=1 seek=0 count=1 conv=notrunc 2>/dev/null
 
 
 ##### 将模块名添加到 /etc/modules 文件：
@@ -207,15 +210,21 @@ while [ ! -e /dev/fb1 ]; do
 done
 
 
+
 ##### 赋予执行权限：
 chmod +x /etc/local.d/ssd1306.start
 ##### 启用本地服务（如果未启用）：
 rc-update add local
 ##重启后，/dev/fb1 应该会自动出现。
 
+# 滚动方向是否正常（新信息在底部）,如果不是用这个测试 0-4
+echo 2 > /sys/class/graphics/fbcon/rotate_all
+
 nano /boot/cmdline.txt
 ### 在原有参数行末尾添加（注意空格分隔）：
 fbcon=map:1
+或 fbcon=map:1,rotate:2
+
 
 
 
