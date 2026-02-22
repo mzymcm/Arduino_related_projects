@@ -294,3 +294,109 @@ tail -n 50 /var/log/xrdp.log
 apk add xorg-server xf86-video-fbdev xf86-input-libinput xfce4 xfce4-terminal
 
 
+
+
+
+###### 汉字显示解决方法 ##########
+
+apk add musl-locales musl-locales-lang
+
+编辑 /etc/profile 或你的 shell 配置文件（如 ~/.profile），在末尾添加：
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+
+安装中文字体（避免中文显示为方块）
+apk add font-noto-cjk   # 或 font-wqy-zenhei
+fc-cache -fv            # 刷新字体缓存
+
+验证
+locale            # 查看当前 locale 设置
+echo "测试中文"    # 如果能正常显示中文则成功
+
+apk add xfdesktop-lang
+
+可以试试创建一个 ~/.xprofile 文件，将 locale 变量写入其中，确保在启动 Xfce 时被加载：
+cat >> ~/.xprofile << EOF
+export LANG=zh_CN.UTF-8
+export LANGUAGE=zh_CN:zh
+EOF
+之后再次注销重新登录，问题一般就能解决
+
+
+
+
+
+
+全能选手 (NetworkManager + iwd)
+如果你需要更全面的网络管理功能，可以用 NetworkManager 替换掉系统默认的网络服务。
+
+1. 安装与初步配置
+bash
+# 安装 NetworkManager 及其 WiFi 组件、文本界面和命令行工具
+apk add networkmanager networkmanager-wifi networkmanager-tui networkmanager-cli iwd
+
+# 重要：NetworkManager 依赖于 udev，需要切换设备管理器
+# 注意：此操作会修改系统基础配置，建议在操作前了解其影响
+setup-devd udev
+2. 调整配置文件
+首先，编辑 iwd 的配置文件，注释掉独立模式，以便 NetworkManager 接管：
+nano /etc/iwd/main.conf
+[General]
+# 注释掉下面这行
+# EnableNetworkConfiguration=True
+
+[Network]
+# 注释掉下面这行
+# NameResolvingService=resolvconf
+
+然后，配置 NetworkManager 使用 iwd 作为 WiFi 后端：
+nano /etc/NetworkManager/NetworkManager.conf
+[main]
+dhcp=internal
+plugins=keyfile
+
+[device]
+wifi.scan-rand-mac-address=yes
+wifi.backend=iwd
+
+3. 禁用旧服务，启用新服务
+bash
+# 停止并移除旧的网络管理服务
+rc-service networking stop
+rc-update del networking boot
+rc-service wpa_supplicant stop
+rc-update del wpa_supplicant boot
+
+# 编辑 /etc/network/interfaces，确保只留下 loopback 配置
+# auto lo
+# iface lo inet loopback
+
+# 启动并启用 iwd 和 NetworkManager
+rc-service iwd start
+rc-update add iwd
+rc-service networkmanager start
+rc-update add networkmanager
+4. Xfce 中连接 WiFi
+现在，你可以通过多种方式管理网络：
+
+命令行：nmtui 启动文本界面。
+
+图形界面：在 Xfce 的“设置管理器”中，你应该能看到“网络连接”(Network Connections) 选项，点击即可添加和编辑 WiFi、有线等连接。Xfce 面板通常也会自动出现网络图标。
+
+
+
+如果wifi 驱动有问题，安装工具查看
+apk add sudo
+apk add pciutils
+sudo lspci | grep -i network
+sudo lsusb | grep -i network
+ip link show
+
+有些 USB 无线网卡需要安装额外固件。常见芯片的固件包：
+sudo apk add linux-firmware-rtlwifi   # Realtek
+sudo apk add linux-firmware-ath9k_htc # Atheros USB
+sudo apk add linux-firmware-iwlwifi   # Intel
+
+树莓派不同型号的无线芯片略有不同，但 linux-firmware-brcm 通常覆盖所有型号
+sudo apk add linux-firmware-brcm
+执行两个代码来查询结果。
