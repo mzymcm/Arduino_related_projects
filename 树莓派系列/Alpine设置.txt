@@ -400,3 +400,21 @@ sudo apk add linux-firmware-iwlwifi   # Intel
 树莓派不同型号的无线芯片略有不同，但 linux-firmware-brcm 通常覆盖所有型号
 sudo apk add linux-firmware-brcm
 执行两个代码来查询结果。
+
+
+
+
+
+
+
+要使用 apt-get 删除已安装的 fbi，可以运行以下命令：
+sudo apt-get remove fbi
+这只会卸载软件包，但保留配置文件。如果你希望连配置文件一起删除，可以使用 purge：
+sudo apt-get purge fbi
+之后，可以运行 autoremove 清理不再需要的依赖包：
+sudo apt-get autoremove
+检查是否已安装
+如果不确定 fbi 是否已安装，可以先查询：
+dpkg -l | grep fbi
+或者：
+apt list --installed | grep fbi
