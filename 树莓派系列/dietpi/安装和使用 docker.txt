@@ -103,6 +103,27 @@ docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v portainer_data:/data \
   portainer/portainer-ce:latest
+
+
+要使用 ，首先创建 Portainer 服务器用来存储其数据库的卷：docker run
+docker volume create portainer_data
+然后，下载并安装 Portainer 服务器容器：
+docker run -d -p 8000:8000 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:lts
+默认情况下，Portainer 生成并使用自签名的 SSL 证书来保护端口 。或者，安装完成后，你也可以在安装时或通过 Portainer 界面提供自己的 SSL 证书。9443
+如果你因遗留原因需要 HTTP 端口开放，请在命令中添加以下内容：9000docker run
+-p 9000:9000
+Portainer 服务器现已安装。您可以通过运行以下程序检查 Portainer 服务器容器是否已启动：docker ps
+root@server:~# docker ps
+CONTAINER ID   IMAGE                        COMMAND        CREATED         STATUS         PORTS                                                                                                NAMES
+7963585688a9   portainer/portainer-ce:lts   "/portainer"   8 seconds ago   Up 8 seconds   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp, 0.0.0.0:9443->9443/tcp, [::]:9443->9443/tcp, 9000/tcp   portainer
+登录
+安装完成后，您可以通过打开网页浏览器并访问以下网站登录您的 Portainer 服务器实例：
+https://localhost:9443
+如果需要，用相应的IP地址或FQDN替换，如果之前改过端口，请调整。localhost
+
+你会看到Portainer服务器的初始设置页面。
+
+
 简单解释一下：-p 9443:443 是把容器内的 443 端口映射到树莓派的 9443 端口，这样我们就可以通过 https:// 安全地访问管理界面了。
 
 首次登录与设置
