@@ -59,8 +59,34 @@ nano /etc/docker/daemon.json
     "log-level": "warn",
     "debug": false,
     "registry-mirrors": [
-    "https://docker.1ms.run",
-    "https://docker.mhtsec.com"]
+        "https://docker.registry.cyou",
+        "https://docker-cf.registry.cyou",
+        "https://dockercf.jsdelivr.fyi",
+        "https://docker.jsdelivr.fyi",
+        "https://dockertest.jsdelivr.fyi",
+        "https://mirror.aliyuncs.com",
+        "https://dockerproxy.com",
+        "https://mirror.baidubce.com",
+        "https://docker.m.daocloud.io",
+        "https://docker.nju.edu.cn",
+        "https://docker.mirrors.sjtug.sjtu.edu.cn",
+        "https://docker.mirrors.ustc.edu.cn",
+        "https://mirror.iscas.ac.cn",
+        "https://docker.rainbond.cc",
+        "https://do.nark.eu.org",
+        "https://dc.j8.work",
+        "https://dockerproxy.com",
+        "https://gst6rzl9.mirror.aliyuncs.com",
+        "https://registry.docker-cn.com",
+        "http://hub-mirror.c.163.com",
+        "http://mirrors.ustc.edu.cn/",
+        "https://mirrors.tuna.tsinghua.edu.cn/",
+        "http://mirrors.sohu.com/"
+    ],
+    "insecure-registries": [
+        "registry.docker-cn.com",
+        "docker.mirrors.ustc.edu.cn"
+    ]
 }
 保存文件后，重启 Docker 服务：
 systemctl daemon-reload && sudo systemctl restart docker
@@ -75,6 +101,44 @@ docker pull hello-world
 成功拉取了 hello-world 镜像，这表明 Docker 的基本功能正常，你配置的镜像加速器也在正常工作
 
 
+sources.list，操作如下：
+
+sudo nano /etc/apt/sources.list
+添加一行：
+
+deb https://apt.dockerproject.org/repo/ raspbian-RELEASE main
+
+
+
+
+常用配置和工具命令
+
+#查看 Docker 版本
+docker -v
+sudo docker pull 仓库/镜像:版本（留空的话默认为 latest）
+sudo docker run 加参数，用来创建容器
+#查看运行容器
+sudo docker ps
+#查看所有下载的镜像
+sudo docker images
+#进入容器终端
+sudo docker exec -i -t ha /bin/bash
+#实时查看10行的 ha 日志
+sudo docker logs -f -t --tail 10 ha
+#重启 systemctl 守护进程
+sudo systemctl daemon-reload
+#设置 Docker 开机启动
+sudo systemctl enable docker
+#开启 Docker 服务
+sudo systemctl start docker
+ 
+#下载 Docker 图形化界面 portainer
+sudo docker pull portainer/portainer
+#创建 portainer 容器
+sudo docker volume create portainer_data
+#运行 portainer
+sudo docker run -d -p 9000:9000 --name portainer --restart always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer
+在图形化界面中操作更加便利。运行之后在浏览器中输入树莓派IP:9000 进入界面。
 
 
 
@@ -89,55 +153,10 @@ docker pull hello-world
 
 
 
-安装 Portainer
-创建专用存储卷
-首先，我们要为 Portainer 创建一个“保险箱”（Docker 卷），用来长久保存它的所有设置和数据，这样即使容器出问题，配置也不会丢。
-docker volume create portainer_data
-运行 Portainer 容器
-接下来，使用这条命令来启动 Portainer。它会自动从网上下载适合你树莓派（ARMv6架构）的镜像并运行。
-请注意：如果你的树莓派是通过 Wi-Fi 连接的，运行 ifconfig 命令，找到 wlan0 或 eth0 下面的 inet 地址，记下它，下一步登录时会用到。
-docker run -d \
-  --name portainer \
-  --restart=always \
-  -p 8000:8000 -p 9443:443 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v portainer_data:/data \
-  portainer/portainer-ce:latest
 
+检查 Docker 版本
+docker --version | grep -oE '[0-9]+\.[0-9]+' | head -1
 
-要使用 ，首先创建 Portainer 服务器用来存储其数据库的卷：docker run
-docker volume create portainer_data
-然后，下载并安装 Portainer 服务器容器：
-docker run -d -p 8000:8000 -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:lts
-默认情况下，Portainer 生成并使用自签名的 SSL 证书来保护端口 。或者，安装完成后，你也可以在安装时或通过 Portainer 界面提供自己的 SSL 证书。9443
-如果你因遗留原因需要 HTTP 端口开放，请在命令中添加以下内容：9000docker run
--p 9000:9000
-Portainer 服务器现已安装。您可以通过运行以下程序检查 Portainer 服务器容器是否已启动：docker ps
-root@server:~# docker ps
-CONTAINER ID   IMAGE                        COMMAND        CREATED         STATUS         PORTS                                                                                                NAMES
-7963585688a9   portainer/portainer-ce:lts   "/portainer"   8 seconds ago   Up 8 seconds   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp, 0.0.0.0:9443->9443/tcp, [::]:9443->9443/tcp, 9000/tcp   portainer
-登录
-安装完成后，您可以通过打开网页浏览器并访问以下网站登录您的 Portainer 服务器实例：
-https://localhost:9443
-如果需要，用相应的IP地址或FQDN替换，如果之前改过端口，请调整。localhost
-
-你会看到Portainer服务器的初始设置页面。
-
-
-简单解释一下：-p 9443:443 是把容器内的 443 端口映射到树莓派的 9443 端口，这样我们就可以通过 https:// 安全地访问管理界面了。
-
-首次登录与设置
-装好之后，就可以通过浏览器来初始化你的 Portainer 了。
-
-访问界面
-打开电脑或手机上的浏览器，在地址栏输入：https://你的树莓派IP地址:9443
-例如：如果你的树莓派 IP 是 172.16.2.110，就输入 https://172.16.2.110:9443
-注意：因为是第一次使用自签名证书，浏览器会提示“不安全”或“存在风险”，点击“高级”并选择“继续前往”即可。
-
-创建管理员用户
-首次访问会进入初始化页面，你需要为 admin 账户设置一个密码，务必牢记。
-
-连接你的 Docker 环境
-登录后，Portainer 会询问你要管理哪个 Docker 环境。选择 “Docker” 或 “Local”（本地），然后点击 “Connect” 或 “开始” 按钮。Portainer 会自动检测并连接到树莓派本地的 Docker 服务。
-
-到这里，Portainer 就全部设置好了，你会进入它的主界面，可以开始愉快地管理容器了。
+获得镜像加速器
+https://cr.console.aliyun.com/cn-hangzhou/instances/mirrors
+https://ewbrw0qv.mirror.aliyuncs.com
