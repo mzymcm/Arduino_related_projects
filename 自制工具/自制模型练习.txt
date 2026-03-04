@@ -1,0 +1,193 @@
+自己建模型和训练的例子：
+
+python.exe -m pip install --upgrade pip
+PS D:\temp> python.exe -m venv venv
+PS D:\temp> .\venv\Scripts\Activate.ps1
+
+pip install scikit-learn
+pip install flask joblib numpy
+
+如果你之后也想尝试第二个模型（MNIST 手写数字识别），则需要安装 TensorFlow：
+pip install tensorflow
+（注意：TensorFlow 安装包较大，请确保网络稳定并有足够磁盘空间。）
+
+验证安装
+安装后，可以快速测试是否成功：
+python -c "import sklearn; print(sklearn.__version__)"
+如果正常输出版本号，说明安装成功。继续你的训练脚本即可。
+
+
+推荐模型 1：鸢尾花分类（Iris Classification）
+类型：传统机器学习（分类）
+框架：scikit‑learn
+数据：鸢尾花数据集（150 条样本，4 个特征，3 个类别）
+优点：训练极快，模型文件仅几 KB，推理速度快，非常适合作为 API 演示。
+训练并保存模型
+创建 train_iris.py：
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+import joblib
+# 加载数据
+iris = load_iris()
+X, y = iris.data, iris.target
+# 训练随机森林分类器（也可以用逻辑回归、决策树等）
+model = RandomForestClassifier(n_estimators=10, random_state=42)
+model.fit(X, y)
+# 保存模型
+joblib.dump(model, 'iris_model.pkl')
+print("模型已保存为 iris_model.pkl")
+
+
+运行：
+python train_iris.py
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+推荐模型 2：MNIST 手写数字识别（MNIST CNN）
+类型：深度学习（图像分类）
+框架：TensorFlow / Keras
+数据：MNIST（6 万张 28×28 灰度手写数字图片）
+优点：虽然是深度学习，但模型可以做得非常小（例如一个简单的 CNN 参数量不足 10 万），文件大小约几百 KB，依然适合部署。同时可以体验图像数据的预处理和 API 设计。
+训练并保存模型
+创建 train_mnist.py（需要安装 tensorflow）：
+
+import tensorflow as tf
+from tensorflow import keras
+# 加载 MNIST 数据
+(x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+# 归一化并增加通道维度
+x_train = x_train.astype('float32') / 255.0
+x_test = x_test.astype('float32') / 255.0
+x_train = x_train[..., tf.newaxis]  # shape: (60000,28,28,1)
+x_test = x_test[..., tf.newaxis]
+# 构建一个极简 CNN
+model = keras.Sequential([
+    keras.layers.Conv2D(8, (3,3), activation='relu', input_shape=(28,28,1)),
+    keras.layers.MaxPooling2D((2,2)),
+    keras.layers.Flatten(),
+    keras.layers.Dense(10, activation='softmax')
+])
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+# 只训练 2 个 epoch（快速演示）
+model.fit(x_train, y_train, epochs=2, validation_split=0.1)
+# 保存为 Keras 格式（也可保存为 SavedModel）
+model.save('mnist_model.keras')
+print("模型已保存为 mnist_model.keras")
+
+
+运行：
+python train_mnist.py
+运行后得到 mnist_model.keras。部署这个模型时，需要在 Flask 中加载模型，并处理图像数据（例如接收 base64 编码的图像或 28×28 的像素列表）。
+
+
+
+
+
+
+
+
+
+
+
+
+
+用 Flask 部署 MNIST 模型的简单示例：f_test.py
+
+from flask import Flask, request, jsonify
+import tensorflow as tf
+import numpy as np
+
+# 加载模型
+model = tf.keras.models.load_model('mnist_model.keras')
+
+app = Flask(__name__)
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.get_json()
+    # 假设前端传来一个包含 784 个像素值的列表（0~255）
+    pixels = np.array(data['image']).reshape(1, 28, 28, 1).astype('float32') / 255.0
+    pred = model.predict(pixels)
+    digit = np.argmax(pred[0])
+    return jsonify({'digit': int(digit)})
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+
+
+运行：
+python f_test.py
+
+测试时，你需要发送一个 784 长度的列表，例如从 MNIST 测试集中取一张图片。
+
+
+
+
+
+
+
+用 Python 脚本生成测试图片并发送请求
+创建一个 Python 文件 test_mnist_api.py，内容如下：
+
+
+import numpy as np
+import requests
+import tensorflow as tf
+from tensorflow import keras
+
+# 1. 加载 MNIST 测试集
+(_, _), (x_test, y_test) = keras.datasets.mnist.load_data()
+
+# 2. 取第一张图片
+image = x_test[0]
+label = y_test[0]
+pixels = image.flatten().tolist()
+
+# 3. 发送请求
+url = "http://localhost:5000/predict"
+print(f"发送请求到 {url} ...")
+try:
+    response = requests.post(url, json={"image": pixels}, timeout=5)
+    print(f"状态码: {response.status_code}")
+    if response.status_code == 200:
+        result = response.json()
+        print(f"真实数字: {label}")
+        print(f"API 预测结果: {result['digit']}")
+    else:
+        print(f"错误响应: {response.text}")
+except requests.exceptions.ConnectionError:
+    print("连接失败：请确认 Flask 服务是否正在运行，且地址端口正确。")
+except Exception as e:
+    print(f"发生异常: {e}")
+
+
+
+运行脚本：
+python test_mnist_api.py
+
+PS C:\Users\Administrator> cd D:\temp
+PS D:\temp> .\venv\Scripts\Activate.ps1
+(venv) PS D:\temp> python test_mnist_api.py
+2026-03-04 10:19:41.325441: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-03-04 10:19:43.243383: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+发送请求到 http://localhost:5000/predict ...
+状态码: 200
+真实数字: 7
+API 预测结果: 7
