@@ -1,0 +1,683 @@
+PS D:\python_test\my_mcp_server> python.exe -m venv venv
+PS D:\python_test\my_mcp_server> .\venv\Scripts\Activate.ps1
+(venv) PS D:\python_test\my_mcp_server>pip install "mcp[cli]" aiohttp pandas
+(venv) PS D:\python_test\my_mcp_server> mcp version
+MCP version 1.26.0
+
+编辑主程序文档：main.py
+
+# main.py - 计算器 MCP 服务器（使用 FastMCP）
+import math
+from mcp.server.fastmcp import FastMCP
+
+# 创建 FastMCP 实例
+mcp = FastMCP("Calculator Server")
+
+# 定义安全的 eval 环境
+SAFE_NAMESPACE = {
+    '__builtins__': None,
+    'abs': abs,
+    'round': round,
+    'min': min,
+    'max': max,
+    'sum': sum,
+    'pow': pow,
+    'math': math,
+    'sqrt': math.sqrt,
+    'sin': math.sin,
+    'cos': math.cos,
+    'tan': math.tan,
+    'log': math.log,
+    'exp': math.exp,
+    'pi': math.pi,
+    'e': math.e,
+}
+
+@mcp.tool()
+def calculate(expression: str) -> str:
+    """
+    计算数学表达式并返回结果。
+    支持的运算：+ - * / ** % 以及 math 模块中的函数（如 sqrt, sin, cos 等）。
+    示例：'1+2' -> 3, 'sqrt(16)' -> 4.0, '2**10' -> 1024
+    """
+    if not expression or not isinstance(expression, str):
+        return "错误：请输入一个有效的表达式"
+
+    try:
+        code = compile(expression, '<string>', 'eval')
+        result = eval(code, SAFE_NAMESPACE, {})
+        return str(result)
+    except SyntaxError:
+        return "错误：表达式语法错误"
+    except ZeroDivisionError:
+        return "错误：除数不能为零"
+    except Exception as e:
+        return f"错误：{str(e)}"
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
+
+
+
+
+编辑测试程序文档：编写一个通用的 Python MCP 客户端（交互式）：mcp_client.py
+
+# mcp_client.py
+import asyncio
+import sys
+import json
+import os
+
+class MCPClient:
+    def __init__(self, server_script):
+        self.server_script = server_script
+        self.proc = None
+
+    async def start(self):
+        self.proc = await asyncio.create_subprocess_exec(
+            sys.executable, self.server_script,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        # 初始化
+        await self._request({
+            "jsonrpc": "2.0",
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-11-25",
+                "clientInfo": {"name": "custom-client", "version": "1.0"},
+                "capabilities": {}
+            },
+            "id": 1
+        })
+
+    async def _request(self, req):
+        self.proc.stdin.write((json.dumps(req) + "\n").encode())
+        await self.proc.stdin.drain()
+        resp = await self.proc.stdout.readline()
+        return json.loads(resp.decode())
+
+    async def call_tool(self, tool_name, arguments):
+        req = {
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": {"name": tool_name, "arguments": arguments},
+            "id": 2
+        }
+        resp = await self._request(req)
+        return resp.get("result", {}).get("content", [])
+
+    async def close(self):
+        self.proc.terminate()
+        await self.proc.wait()
+
+async def main():
+    client = MCPClient("main.py")
+    await client.start()
+    print("MCP 计算器客户端已启动。输入表达式如 '1+2'，输入 'exit' 退出。")
+    while True:
+        expr = input(">>> ")
+        if expr.lower() in ("exit", "quit"):
+            break
+        result = await client.call_tool("calculate", {"expression": expr})
+        # 提取文本结果
+        for content in result:
+            if content.get("type") == "text":
+                print(content.get("text"))
+    await client.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+
+
+
+运行方法：
+
+powershell
+python mcp_client.py
+然后你就可以直接输入表达式，实时获得计算结果：
+
+text
+>>> 1+2
+3
+>>> sqrt(16)
+4.0
+>>> exit
+这种方式最轻量，完全在你本地，不依赖任何外部客户端。
+
+
+
+
+
+
+
+
+🚀 实现方案：FastAPI 代理调用 MCP 计算器
+1. 安装所需依赖
+首先，确保你的虚拟环境中安装了 fastapi 和 uvicorn（用于运行 Web 服务器）：
+(venv) PS D:\python_test\my_mcp_server> python.exe -m pip install --upgrade pip
+(venv) PS D:\python_test\my_mcp_server> pip install fastapi uvicorn
+2. 创建包装脚本 web_api.py
+
+# web_api.py
+import asyncio
+import json
+import sys
+from contextlib import asynccontextmanager
+from typing import Any, Dict
+
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+# 请求体模型
+class CalculateRequest(BaseModel):
+    expression: str
+
+# 响应体模型
+class CalculateResponse(BaseModel):
+    result: str
+
+# 全局子进程和通信流
+class MCPProcess:
+    def __init__(self, script_path: str):
+        self.script_path = script_path
+        self.proc = None
+        self.next_id = 1
+
+    async def start(self):
+        """启动 MCP 服务器子进程"""
+        self.proc = await asyncio.create_subprocess_exec(
+            sys.executable, self.script_path,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        # 发送初始化请求（必须，MCP 协议要求）
+        await self._request({
+            "jsonrpc": "2.0",
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-11-25",
+                "clientInfo": {"name": "web-api-client", "version": "1.0"},
+                "capabilities": {}
+            }
+        })
+
+    async def _request(self, req: Dict[str, Any]) -> Dict[str, Any]:
+        """发送 JSON-RPC 请求并等待响应"""
+        req["id"] = self.next_id
+        self.next_id += 1
+        # 写入请求（每行一个 JSON）
+        self.proc.stdin.write((json.dumps(req) + "\n").encode())
+        await self.proc.stdin.drain()
+        # 读取一行响应
+        line = await self.proc.stdout.readline()
+        if not line:
+            # 可能进程已退出，读取 stderr 获取错误
+            stderr = await self.proc.stderr.read()
+            raise RuntimeError(f"MCP 进程异常退出: {stderr.decode()}")
+        return json.loads(line.decode())
+
+    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
+        """调用 MCP 工具"""
+        req = {
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments}
+        }
+        resp = await self._request(req)
+        if "error" in resp:
+            raise RuntimeError(resp["error"].get("message", "未知错误"))
+        # 提取结果内容
+        result_content = resp["result"]["content"]
+        # 假设第一个文本片段是结果
+        for content in result_content:
+            if content["type"] == "text":
+                return content["text"]
+        return str(result_content)
+
+    async def stop(self):
+        """终止子进程"""
+        if self.proc:
+            self.proc.terminate()
+            await self.proc.wait()
+
+# 全局 MCP 进程管理器
+mcp_process = MCPProcess("main.py")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时初始化 MCP 进程
+    await mcp_process.start()
+    yield
+    # 关闭时清理
+    await mcp_process.stop()
+
+# 创建 FastAPI 应用
+app = FastAPI(
+    title="MCP Calculator Web API",
+    description="通过 HTTP 调用 MCP 计算器服务器",
+    lifespan=lifespan
+)
+
+@app.post("/calculate", response_model=CalculateResponse)
+async def calculate(req: CalculateRequest):
+    """
+    计算数学表达式
+    - **expression**: 字符串形式的数学表达式，如 "1+2" 或 "sqrt(16)"
+    """
+    try:
+        result = await mcp_process.call_tool("calculate", {"expression": req.expression})
+        return CalculateResponse(result=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+async def health():
+    """健康检查端点"""
+    return {"status": "ok"}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+
+
+
+测试方法
+1. 确保 Web API 服务仍在运行
+如果你之前关闭了终端，需要重新启动 Web API。在项目目录 D:\python_test\my_mcp_server 中，确保虚拟环境激活，然后运行：
+(venv) PS D:\python_test\my_mcp_server> python web_api.py
+[32mINFO[0m:     Started server process [[36m21436[0m]
+[32mINFO[0m:     Waiting for application startup.
+[32mINFO[0m:     Application startup complete.
+[32mINFO[0m:     Uvicorn running on [1mhttp://0.0.0.0:8000[0m (Press CTRL+C to quit)
+[32mINFO[0m:     127.0.0.1:63187 - "[1mPOST /calculate HTTP/1.1[0m" [31m422 Unprocessable Content[0m
+[32mINFO[0m:     127.0.0.1:63192 - "[1mPOST /calculate HTTP/1.1[0m" [32m200 OK[0m
+保持该终端窗口运行，不要关闭。
+
+2. 打开一个新的 PowerShell 窗口，执行以下命令：Invoke-RestMethod -Uri "http://localhost:8000/calculate" -Method Post -Body '{"expression":"1+2"}' -ContentType "application/json"
+
+PS C:\Users\Administrator> Invoke-RestMethod -Uri "http://localhost:8000/calculate" -Method Post -Body '{"expression":"1+2"}' -ContentType "application/json"
+result
+------
+3
+
+
+
+第二种客户端测试方法：
+
+我们创建一个简单的 HTML + JavaScript 测试页面，用于调用你搭建的 MCP 计算器 Web API。为了确保页面能正常跨域访问，我们需要在 FastAPI 后端启用 CORS（跨域资源共享）。
+
+🔧 第一步：修改 web_api.py 启用 CORS
+将你的 web_api.py 文件更新为以下内容（添加了 CORS 中间件，允许所有来源的请求，方便本地测试）：
+
+# web_api.py
+import asyncio
+import json
+import sys
+from contextlib import asynccontextmanager
+from typing import Any, Dict
+
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+# 请求体模型
+class CalculateRequest(BaseModel):
+    expression: str
+
+# 响应体模型
+class CalculateResponse(BaseModel):
+    result: str
+
+# 全局子进程和通信流
+class MCPProcess:
+    def __init__(self, script_path: str):
+        self.script_path = script_path
+        self.proc = None
+        self.next_id = 1
+
+    async def start(self):
+        """启动 MCP 服务器子进程"""
+        self.proc = await asyncio.create_subprocess_exec(
+            sys.executable, self.script_path,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        # 发送初始化请求（必须，MCP 协议要求）
+        await self._request({
+            "jsonrpc": "2.0",
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2025-11-25",
+                "clientInfo": {"name": "web-api-client", "version": "1.0"},
+                "capabilities": {}
+            }
+        })
+
+    async def _request(self, req: Dict[str, Any]) -> Dict[str, Any]:
+        """发送 JSON-RPC 请求并等待响应"""
+        req["id"] = self.next_id
+        self.next_id += 1
+        # 写入请求（每行一个 JSON）
+        self.proc.stdin.write((json.dumps(req) + "\n").encode())
+        await self.proc.stdin.drain()
+        # 读取一行响应
+        line = await self.proc.stdout.readline()
+        if not line:
+            # 可能进程已退出，读取 stderr 获取错误
+            stderr = await self.proc.stderr.read()
+            raise RuntimeError(f"MCP 进程异常退出: {stderr.decode()}")
+        return json.loads(line.decode())
+
+    async def call_tool(self, name: str, arguments: Dict[str, Any]) -> Any:
+        """调用 MCP 工具"""
+        req = {
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments}
+        }
+        resp = await self._request(req)
+        if "error" in resp:
+            raise RuntimeError(resp["error"].get("message", "未知错误"))
+        # 提取结果内容
+        result_content = resp["result"]["content"]
+        # 假设第一个文本片段是结果
+        for content in result_content:
+            if content["type"] == "text":
+                return content["text"]
+        return str(result_content)
+
+    async def stop(self):
+        """终止子进程"""
+        if self.proc:
+            self.proc.terminate()
+            await self.proc.wait()
+
+# 全局 MCP 进程管理器
+mcp_process = MCPProcess("main.py")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时初始化 MCP 进程
+    await mcp_process.start()
+    yield
+    # 关闭时清理
+    await mcp_process.stop()
+
+# 创建 FastAPI 应用
+app = FastAPI(
+    title="MCP Calculator Web API",
+    description="通过 HTTP 调用 MCP 计算器服务器",
+    lifespan=lifespan
+)
+
+# 添加 CORS 中间件（允许所有来源，仅用于开发测试）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],           # 允许所有域名
+    allow_credentials=True,
+    allow_methods=["*"],           # 允许所有 HTTP 方法
+    allow_headers=["*"],           # 允许所有请求头
+)
+
+@app.post("/calculate", response_model=CalculateResponse)
+async def calculate(req: CalculateRequest):
+    """
+    计算数学表达式
+    - **expression**: 字符串形式的数学表达式，如 "1+2" 或 "sqrt(16)"
+    """
+    try:
+        result = await mcp_process.call_tool("calculate", {"expression": req.expression})
+        return CalculateResponse(result=result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+async def health():
+    """健康检查端点"""
+    return {"status": "ok"}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+
+
+
+第二步：创建 HTML 测试页面
+在项目目录（或任意位置）创建一个名为 test_calculator.html 的文件，内容如下：
+
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP 计算器测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .input-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.clear {
+            background-color: #f44336;
+        }
+        button.clear:hover {
+            background-color: #da190b;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-left: 4px solid #4CAF50;
+            font-size: 18px;
+            word-break: break-word;
+        }
+        .error {
+            border-left-color: #f44336;
+            color: #d32f2f;
+        }
+        .examples {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .examples span {
+            display: inline-block;
+            background-color: #e7e7e7;
+            padding: 5px 10px;
+            margin: 0 5px 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .examples span:hover {
+            background-color: #d4d4d4;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧮 MCP 计算器测试</h1>
+    <p>输入数学表达式（如 <code>1+2</code>, <code>sqrt(16)</code>, <code>2**10</code>）</p>
+    
+    <div class="input-group">
+        <label for="expression">表达式：</label>
+        <input type="text" id="expression" placeholder="例如 1+2" value="1+2">
+    </div>
+    
+    <button id="calculateBtn">计算</button>
+    <button id="clearBtn" class="clear">清空</button>
+    
+    <div class="examples">
+        <strong>示例：</strong>
+        <span>1+2</span>
+        <span>3*4</span>
+        <span>10/2</span>
+        <span>2**10</span>
+        <span>sqrt(16)</span>
+        <span>sin(pi/2)</span>
+        <span>log(e)</span>
+    </div>
+    
+    <div id="result" class="result"></div>
+
+    <script>
+        const expressionInput = document.getElementById('expression');
+        const calculateBtn = document.getElementById('calculateBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const resultDiv = document.getElementById('result');
+        const exampleSpans = document.querySelectorAll('.examples span');
+
+        // API 地址（确保 Web API 运行在 localhost:8000）
+        const API_URL = 'http://localhost:8000/calculate';
+
+        // 计算结果
+        async function calculate() {
+            const expression = expressionInput.value.trim();
+            if (!expression) {
+                showResult('请输入表达式', true);
+                return;
+            }
+
+            // 禁用按钮，防止重复点击
+            calculateBtn.disabled = true;
+            calculateBtn.textContent = '计算中...';
+            resultDiv.className = 'result'; // 重置样式
+            resultDiv.textContent = '正在请求...';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ expression: expression })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult(data.result, false);
+                } else {
+                    // 错误处理
+                    const errorMsg = data.detail || JSON.stringify(data);
+                    showResult(`错误：${errorMsg}`, true);
+                }
+            } catch (error) {
+                showResult(`网络错误：${error.message}`, true);
+            } finally {
+                calculateBtn.disabled = false;
+                calculateBtn.textContent = '计算';
+            }
+        }
+
+        // 显示结果
+        function showResult(content, isError) {
+            resultDiv.textContent = content;
+            if (isError) {
+                resultDiv.classList.add('error');
+            } else {
+                resultDiv.classList.remove('error');
+            }
+        }
+
+        // 清空输入和结果
+        function clearAll() {
+            expressionInput.value = '';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '';
+        }
+
+        // 点击示例填充
+        exampleSpans.forEach(span => {
+            span.addEventListener('click', () => {
+                expressionInput.value = span.textContent;
+                calculate(); // 可选：自动计算
+            });
+        });
+
+        // 事件绑定
+        calculateBtn.addEventListener('click', calculate);
+        clearBtn.addEventListener('click', clearAll);
+        
+        // 支持回车键
+        expressionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                calculate();
+            }
+        });
+
+        // 页面加载后自动计算默认值（可选）
+        window.addEventListener('load', () => {
+            // 可取消注释以下行以自动计算初始表达式
+            // calculate();
+        });
+    </script>
+</body>
+</html>
+
+
+
+🚀 第三步：运行并测试
+确保 Web API 正在运行（在项目目录下，虚拟环境激活）：
+(venv) PS D:\python_test\my_mcp_server> python web_api.py
+[32mINFO[0m:     Started server process [[36m14356[0m]
+[32mINFO[0m:     Waiting for application startup.
+[32mINFO[0m:     Application startup complete.
+[32mINFO[0m:     Uvicorn running on [1mhttp://0.0.0.0:8000[0m (Press CTRL+C to quit)
+[32mINFO[0m:     127.0.0.1:63445 - "[1mGET / HTTP/1.1[0m" [31m404 Not Found[0m
+[32mINFO[0m:     127.0.0.1:63445 - "[1mGET / HTTP/1.1[0m" [31m404 Not Found[0m
+[32mINFO[0m:     127.0.0.1:63445 - "[1mGET / HTTP/1.1[0m" [31m404 Not Found[0m
+[32mINFO[0m:     127.0.0.1:63445 - "[1mGET / HTTP/1.1[0m" [31m404 Not Found[0m
+[32mINFO[0m:     127.0.0.1:63445 - "[1mGET / HTTP/1.1[0m" [31m404 Not Found[0m
+[32mINFO[0m:     127.0.0.1:63445 - "[1mGET / HTTP/1.1[0m" [31m404 Not Found[0m
+
+用浏览器打开 test_calculator.html：
+
+
