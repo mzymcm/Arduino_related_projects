@@ -1,0 +1,41 @@
+Ubuntu 设置
+
+1. 安装SSH服务器
+sudo apt update
+sudo apt install openssh-server
+2. 编辑SSH配置文件
+sudo nano /etc/ssh/sshd_config
+3. 允许root登录
+在配置文件中找到PermitRootLogin行，并将其更改为yes：
+PermitRootLogin yes
+3. 重启SSH服务
+sudo systemctl restart sshd
+
+
+
+安装并配置XRDP服务
+对于旧版Ubuntu，或者希望获得更稳定、类似Windows服务器远程连接体验的用户，xrdp是首选。
+sudo apt update
+sudo apt install xrdp -y
+安装完成后，xrdp服务会自动启动。运行以下命令确保它开机自启：
+sudo systemctl enable --now xrdp
+
+要修改 gnome-remote-desktop 的默认 3389 端口，可以使用 gsettings 命令来完成。以下是具体步骤：
+gsettings set org.gnome.desktop.remote-desktop.rdp port 23389
+这个修改会立即生效，不需要重启服务 。
+根据 GNOME 官方提交记录，从 2023 年 11 月开始，gnome-remote-desktop 的 RDP 端口已经改为通过 gsettings 配置，不再是硬编码的 3389 。
+修改端口后，需要关闭再重新打开桌面共享功能：
+systemctl --user restart gnome-remote-desktop
+检查新端口是否已监听：
+ss -tuln | grep 23389
+防火墙放行新端口
+如果开启了 UFW 防火墙，需要放行新端口：
+sudo ufw allow 23389/tcp
+
+
+如果之前已经停止/禁用了 gnome-remote-desktop 服务，这个配置可能不会立即生效。你需要重新启用它：
+systemctl --user enable --now gnome-remote-desktop
+与 xrdp 的端口冲突问题：如果你是因为 xrdp 需要 3389 端口而修改 gnome-remote-desktop 的端口，那么修改后两个服务可以共存（一个用 3389，一个用 23389），互不干扰。
+配置文件位置：这个设置存储在用户的 dconf 数据库中，对应路径为 /org/gnome/desktop/remote-desktop/rdp/port 。
+如果你修改后遇到任何问题，或者需要改回 3389 端口，只需执行：
+gsettings set org.gnome.desktop.remote-desktop.rdp port 3389
