@@ -1,0 +1,97 @@
+电脑安装OpenClaw教程
+
+👏👏第一步：运行一键安装脚本
+这是官方推荐、最简单直接的方式，脚本会自动处理 Node.js 环境的检查和安装（如需）。
+以管理员身份打开 PowerShell：在开始菜单中搜索 "PowerShell"，右键点击并选择“以管理员身份运行”。
+iwr -useb https://openclaw.ai/install.ps1 | iex
+备选命令：如果上述链接失效，可以尝试 iwr -useb https://clawd.org.cn/install.ps1 | iex 。
+等待完成：脚本将自动运行，下载并安装 OpenClaw 及其依赖。
+如果遇到执行策略错误，可以先运行 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser 解决
+
+如果还报错，多安装几次就好了。
+
+初始化配置与验证
+安装完成后，需要进行一些基础配置，才能让 OpenClaw 真正跑起来。
+
+启动配置向导：在 PowerShell 中运行以下命令，它会引导你完成大语言模型（LLM）API Key 的设置等核心步骤。
+openclaw onboard
+在向导中，大部分选项可以直接回车使用默认值。对于 Model/auth provider 等步骤，如果暂时没有想好，可以选择 "Skip for now" 后续再配置。
+
+启动核心服务：配置完成后，启动 OpenClaw 的网关服务：
+openclaw gateway start
+生成访问令牌并打开控制台：
+
+openclaw token generate
+openclaw dashboard
+执行 openclaw dashboard 后，你的默认浏览器会自动打开 OpenClaw 的 Web 控制台（地址通常是 http://localhost:18789/），并自动带上访问令牌。现在，你就可以在这里和你的 AI 助理对话了。
+
+🔧 常用排错命令
+如果在安装或使用中遇到问题，以下命令能帮你快速定位和解决：
+
+openclaw doctor：对系统环境和配置文件进行全面健康检查，并给出修复建议，是遇到问题时的首选命令。
+
+openclaw gateway restart：修改配置后，通常需要重启网关使配置生效。
+
+openclaw logs follow：实时查看运行日志，排查 Bug 基本都靠它。
+
+
+👏👏第二步：运行入职向导
+openclaw onboard --install-daemon
+向导负责配置认证、网关设置和可选通道。 参见入职向导细节。
+
+
+
+
+
+
+PS C:\WINDOWS\system32> npx clawhub install filesystem
+
+⚠️  Warning: "filesystem" is flagged as suspicious by VirusTotal Code Insight.
+   This skill may contain risky patterns (crypto keys, external APIs, eval, etc.)
+   Review the skill code before use.
+
+|
+o  Install anyway?
+|  Yes
+√ OK. Installed filesystem -> C:\Users\Administrator\.openclaw\workspace\skills\filesystem
+
+PS C:\WINDOWS\system32> npx clawhub install file-summary
+√ OK. Installed file-summary -> C:\Users\Administrator\.openclaw\workspace\skills\file-summary
+
+
+安装完成后，必须重启网关：
+openclaw gateway restart
+验证技能已就绪：
+openclaw skills list
+
+
+
+
+
+
+
+OpenClaw保护电脑安全的一种机制，需要从两个方面理解：
+
+权限问题：OpenClaw需要被明确允许使用“文件写入”工具，否则它连在工作区内创建文件都做不到。
+
+工作区限制：OpenClaw有一个核心概念叫“智能体工作区”（Agent Workspace），这是它唯一能自由读写文件的“家”目录。默认情况下，它只能在这个“家”里操作，无法去你指定的D盘目录“串门”。
+
+🛠️ 解决方案
+你可以按顺序检查并解决这两个问题：
+
+第一步：检查并开启文件写入权限
+查看当前工具权限：打开终端（CMD或PowerShell），运行以下命令，确认列表中是否有 write 工具：
+
+openclaw tools list
+开启权限（如果缺失）：如果没有 write 工具，你需要修改OpenClaw的配置文件（~/.openclaw/openclaw.json），在 tools 配置项中明确允许文件写入。你可以参考以下配置示例：
+
+json
+{
+  "tools": {
+    // 使用 coding 配置文件（包含 group:fs 文件系统权限）
+    "profile": "coding",
+    // 或明确允许文件写入
+    "allow": ["group:fs", "write"]
+  }
+}
+修改配置后，记得重启OpenClaw服务使设置生效。
