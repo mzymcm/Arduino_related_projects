@@ -1,0 +1,80 @@
+#include <SPI.h>
+#include "epd2in13.h"
+#include "epdpaint.h"
+
+#define COLORED     0
+#define UNCOLORED   1
+
+unsigned char image[1024];
+Paint paint(image, 0, 0);
+Epd epd;
+
+// 根据你的描述，残影在中间，我们覆盖整个区域
+void setup() {
+  Serial.begin(9600);
+  
+  if (epd.Init(lut_full_update) != 0) {
+    Serial.print("Init failed");
+    return;
+  }
+
+  // ===== 阶段1：先全屏白色 =====
+  epd.ClearFrameMemory(0xFF);
+  epd.DisplayFrame();
+  delay(1000);
+  
+  // ===== 阶段2：逐行扫描，确保每个像素都被激活 =====
+  Serial.println("Scanning lines...");
+  
+  paint.SetRotate(ROTATE_0);
+  paint.SetWidth(122);
+  
+  // 从上到下，每10行一组，交替黑白
+  for (int y = 0; y < 250; y += 10) {
+    int block_height = 10;
+    if (y + block_height > 250) block_height = 250 - y;
+    
+    paint.SetHeight(block_height);
+    
+    // 黑白交替
+    if ((y / 10) % 2 == 0) {
+      paint.Clear(COLORED);  // 黑色
+    } else {
+      paint.Clear(UNCOLORED); // 白色
+    }
+    
+    epd.SetFrameMemory(paint.GetImage(), 0, y, 122, block_height);
+    epd.DisplayFrame();
+    delay(100);  // 短暂停留
+  }
+  
+  // ===== 阶段3：全屏交替黑白 =====
+  Serial.println("Full screen alternating");
+  
+  paint.SetWidth(122);
+  paint.SetHeight(250);
+  
+  for (int i = 0; i < 20; i++) {
+    // 全黑
+    paint.Clear(COLORED);
+    epd.SetFrameMemory(paint.GetImage(), 0, 0, 122, 250);
+    epd.DisplayFrame();
+    delay(200);
+    
+    // 全白
+    paint.Clear(UNCOLORED);
+    epd.SetFrameMemory(paint.GetImage(), 0, 0, 122, 250);
+    epd.DisplayFrame();
+    delay(200);
+  }
+  
+  // ===== 阶段4：最终全白 =====
+  paint.Clear(UNCOLORED);
+  epd.SetFrameMemory(paint.GetImage(), 0, 0, 122, 250);
+  epd.DisplayFrame();
+  
+  Serial.println("Done");
+  epd.Sleep();
+}
+
+void loop() {}
