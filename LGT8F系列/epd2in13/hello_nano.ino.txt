@@ -1,0 +1,57 @@
+/**
+ * 内存优化版：用大字体清晰显示，但大幅降低RAM占用
+ * 基于 Waveshare EPD 库 (epd2in13)
+ * 引脚：CS=10, DC=9, RST=8, BUSY=7
+ */
+
+#include <SPI.h>
+#include "epd2in13.h"
+#include "epdpaint.h"
+
+#define COLORED     0
+#define UNCOLORED   1
+
+Epd epd;
+
+// ===== 关键修改1：大幅减小全局缓冲区 =====
+// 不再为全屏分配缓冲区，只为要绘制的区域分配
+// 128x24 的区域只需要 128*24/8 = 384 字节
+unsigned char image[400];  // 留点余量，从4000骤降到400！
+Paint paint(image, 128, 24);  // 只绘制一行的高度
+
+void setup() {
+  // ===== 关键修改2：使用 F() 宏节省RAM =====
+  Serial.begin(9600);
+  Serial.println(F("Starting optimized text test..."));  // F()把字符串存到Flash
+
+  if (epd.Init(lut_full_update) != 0) {
+    Serial.print(F("Init failed"));
+    return;
+  }
+
+  // 清屏为白色
+  epd.ClearFrameMemory(0xFF);
+
+  // ===== 关键修改3：分区域绘制和发送 =====
+  // 第一行文字 "Hello" (使用 Font24)
+  paint.SetRotate(ROTATE_0);
+  paint.SetWidth(128);
+  paint.SetHeight(24);
+  paint.Clear(UNCOLORED);
+  // Font24 字符高度24，正好占满paint的高度
+  paint.DrawStringAt(10, 0, "Hello", &Font24, COLORED);
+  epd.SetFrameMemory(paint.GetImage(), 20, 80, paint.GetWidth(), paint.GetHeight());
+
+  // 第二行文字 "Nano!"
+  paint.Clear(UNCOLORED);
+  paint.DrawStringAt(10, 0, "Nano!", &Font24, COLORED);
+  epd.SetFrameMemory(paint.GetImage(), 20, 120, paint.GetWidth(), paint.GetHeight());
+
+  // 刷新显示
+  epd.DisplayFrame();
+
+  Serial.println(F("Displayed with optimized memory."));
+  epd.Sleep();
+}
+
+void loop() {}
