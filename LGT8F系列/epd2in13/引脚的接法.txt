@@ -1,0 +1,14 @@
+Arduino
+硬件连接
+使用 8PIN 排线连接，请参考下方的引脚对应表格：
+
+Arduino连接引脚对应关系
+e-Paper	Arduino nano
+GND	GND
+VCC	3.3V
+SCL	D13
+SDI	D11
+RES	D8
+D/C	D9
+CS	D10
+BUSY	D7
