@@ -1,0 +1,37 @@
+可以安装的系统除本身的os外，还可以安装DietPi_NanoPiK1Plus-ARMv8-Trixie.img
+
+###### Google 浏览器出出汉字方格情况的解决方法 ##########
+
+检查系统当前使用的字符编码：
+
+echo $LANG
+
+如果输出不是 zh_CN.UTF-8 或 zh_CN.GB18030，则需要修改系统的字符编码设置。
+
+修改字符编码设置：
+
+sudo nano $HOME/.bashrc
+
+export LANG=zh_CN.UTF-8
+
+在终端中输入以下命令来安装中文字体：  # 文泉驿正黑字体
+
+sudo apt-get install fonts-wqy-zenhei
+
+重新加载配置文件
+
+source $HOME/.bashrc
+
+
+
+安装桌面软件市场
+sudo apt install gdebi
+
+安装五笔输入法
+sudo apt-get install im-config
+sudo apt-get install -y fcitx fcitx-table-wubi fcitx-pinyin fcitx-config-gtk fcitx-frontend-gtk3 fcitx-frontend-qt5
+
+
+安装文本编辑器
+sudo apt update
+sudo apt install xfce4-goodies
