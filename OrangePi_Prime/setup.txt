@@ -35,3 +35,8 @@ sudo apt-get install -y fcitx fcitx-table-wubi fcitx-pinyin fcitx-config-gtk fci
 安装文本编辑器
 sudo apt update
 sudo apt install xfce4-goodies
+
+
+Arduino 使用时不能读取USB口的解决办法：
+sudo usermod -a -G dialout $USER
+sudo chmod 666 /dev/ttyUSB0
