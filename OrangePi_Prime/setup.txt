@@ -44,3 +44,11 @@ sudo chmod 666 /dev/ttyUSB0
 sudo chmod 666 /dev/ttyACM0
 sudo chmod 666 /dev/ttyS0
 sudo chmod 666 /dev/ttyS1
+
+
+
+I2C控制
+
+ls /dev/i2c*
+i2cdetect -y 0
+i2cdetect -y 1
