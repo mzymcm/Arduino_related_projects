@@ -1,0 +1,92 @@
+内网离线安装OpenClaw教程
+
+(假设内网离线电脑是麒麟 V10 系统)
+第一步：在能联网的win11主机上安装Docker，使用 Docker 制作 ARM64 OpenClaw 离线包
+1. 安装 Docker Desktop for Windows
+访问 Docker Desktop 官网 下载并安装。
+安装时选择 使用 WSL 2 后端（如果你的系统支持）。如果不支持，也可以使用 Hyper-V 后端，但建议尽量用 WSL 2。
+安装完成后，启动 Docker Desktop，确认右下角状态为绿色。
+
+2. 拉取 ARM64 Ubuntu 镜像
+打开 PowerShell（普通用户即可），执行：
+docker pull --platform linux/arm64 ubuntu:22.04
+这会下载适用于 ARM64 架构的 Ubuntu 22.04 基础镜像。下载可能需要几分钟，取决于你的网络。
+
+3. 创建并进入容器，安装 Node.js 和 OpenClaw
+# 创建并运行一个 ARM64 容器，将主机的 D:\openclaw-offline 挂载到容器的 /mnt/host 目录
+docker run -it --platform linux/arm64 --name openclaw-builder -v D:\openclaw-offline:/mnt/host ubuntu:22.04 bash
+这行命令的含义：
+-it：交互式终端。
+--platform linux/arm64：强制使用 ARM64 镜像（重要）。
+--name openclaw-builder：给容器命名。
+-v D:\openclaw-offline:/mnt/host：将 Windows 的 D:\openclaw-offline 目录挂载到容器的 /mnt/host，以便后续导出文件。
+
+执行后，你会进入容器的 bash 提示符（看起来像 root@...）。现在在容器内执行以下命令（所有命令都在容器内运行）：
+
+# 更新软件源并安装基础工具
+apt update && apt install -y curl tar xz-utils
+
+# 安装 Node.js 24.x（ARM64 版本）
+curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+apt install -y nodejs
+
+# 验证安装
+node -v   # 应显示 v24.x
+npm -v
+
+# 创建工作目录
+mkdir /opt/openclaw && cd /opt/openclaw
+
+# 创建 package.json
+cat > package.json <<EOF
+{
+  "name": "openclaw-offline",
+  "dependencies": {
+    "openclaw": "2026.3.8"
+  }
+}
+EOF
+
+# 安装所有依赖（不执行脚本，只下载）
+npm install --ignore-scripts
+
+# 手动编译原生模块（针对 ARM64）
+cd node_modules/sharp
+npm run install --force
+cd ../node-llama-cpp
+npm run build --force
+cd /opt/openclaw
+
+# 打包整个 node_modules
+tar -czf /mnt/host/openclaw-full-offline-arm64.tar.gz node_modules package.json
+
+# 退出容器
+exit
+4. 在 Windows 上获得离线包
+现在回到 Windows 的 PowerShell，查看 D:\openclaw-offline 目录，应该已经生成了 openclaw-full-offline-arm64.tar.gz 文件。这就是你需要在麒麟 V10 上使用的完整离线包。
+
+5. （可选）清理容器
+# 停止并删除容器
+docker stop openclaw-builder
+docker rm openclaw-builder
+
+（建议不要清理容器，因为后面离线安装Skill还要用）
+
+
+第二步：离线电脑（麒麟 V10 ）上安装OpenClaw
+
+将 openclaw-full-offline-arm64.tar.gz 复制到麒麟机器（例如 /home/my/），然后执行：
+# 解压
+mkdir -p ~/openclaw && cd ~/openclaw
+tar -xzf /path/to/openclaw-full-offline-arm64.tar.gz
+
+# 创建软链接（让 openclaw 命令可用）
+sudo ln -s ~/openclaw/node_modules/openclaw/openclaw.mjs /usr/local/bin/openclaw
+# 或者使用 .bin 目录下的链接（如果存在）
+sudo ln -s ~/openclaw/node_modules/.bin/openclaw /usr/local/bin/openclaw
+
+# 验证
+openclaw --version   # 应显示 2026.3.8
+
+
+
