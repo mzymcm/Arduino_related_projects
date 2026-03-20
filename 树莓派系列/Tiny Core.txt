@@ -1,8 +1,0 @@
-Tiny Core 初次使用帮助
-
-在 cmdline.txt 中将 console 更改为：console=serial0,115200 console=tty1
-config.txt 末尾添加了以下内容：enable_uart=1
-[PI0]                                                                         
-dtoverlay=disable-bt
-
-root login on : tty1
