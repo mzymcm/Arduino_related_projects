@@ -49,6 +49,25 @@ sudo chmod 666 /dev/ttyS1
 
 I2C控制
 
+====  dietpiEnv.txt
+rootdev=UUID=4a0e9043-3d3b-4f1c-8e7d-189b8669f86e
+rootfstype=ext4
+# The init system logs to the console defined last.
+consoleargs=console=ttyS0,115200 console=tty1
+extraargs=fsck.repair=yes net.ifnames=0
+docker_optimizations=off
+overlay_path=allwinner
+# Multiple prefixes are supported separated by space
+overlay_prefix=sun50i-h5
+overlays=analog-codec i2c0 i2c1 i2c2 w1-gpio
+user_overlays=
+
+
+=== 所有能打开的硬件设置信息如下：
+analog-codec cir cpu-clock-1.0GHz-1.1v cpu-clock-1.2GHz-1.3v cpu-clock-1.3GHz-1.3v gpio-regulator-1.3v i2c0 i2c1 i2c2 pps-gpio pwm spdif-out spi-add-cs1 spi-jedec-nor spi-spidev uart1 uart2 uart3 usbhost0 usbhost1 usbhost2 usbhost3 w1-gpio
+
+
+
 ls /dev/i2c*
 i2cdetect -y 0
 i2cdetect -y 1
