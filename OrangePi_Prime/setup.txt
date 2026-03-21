@@ -49,6 +49,48 @@ sudo chmod 666 /dev/ttyS1
 
 I2C控制
 
+====  orangepiEnv.txt
+verbosity=1
+bootlogo=false
+console=both
+disp_mode=1920x1080p60
+overlay_prefix=sun50i-h5
+overlays=analog-codec
+rootdev=UUID=06c136ad-1a3f-4f37-bbe5-1c5a998d6460
+rootfstype=ext4
+usbstoragequirks=0x2537:0x1066:u,0x2537:0x1068:u
+
+
+############# 蓝牙控制信息
+root@orangepiprime:~# hciconfig -a
+hci0:   Type: Primary  Bus: UART
+        BD Address: 08:EA:40:2C:F5:FD  ACL MTU: 1021:8  SCO MTU: 255:16
+        UP RUNNING
+        RX bytes:1472 acl:0 sco:0 events:58 errors:0
+        TX bytes:6407 acl:0 sco:0 commands:60 errors:0
+        Features: 0xff 0xff 0xff 0xfa 0xdb 0xff 0x7b 0x87
+        Packet type: DM1 DM3 DM5 DH1 DH3 DH5 HV1 HV2 HV3
+        Link policy: RSWITCH HOLD SNIFF PARK
+        Link mode: SLAVE ACCEPT
+        Name: 'orangepiprime'
+        Class: 0x1c0000
+        Service Classes: Rendering, Capturing, Object Transfer
+        Device Class: Miscellaneous,
+        HCI Version: 4.0 (0x6)  Revision: 0x1e4c
+        LMP Version: 4.0 (0x6)  Subversion: 0xc3ff
+        Manufacturer: Realtek Semiconductor Corporation (93)
+
+
+root@orangepiprime:~# bluetoothctl
+[NEW] Controller 08:EA:40:2C:F5:FD orangepiprime [default]
+Agent registered
+[bluetooth]#
+
+
+
+
+
+
 ====  dietpiEnv.txt
 rootdev=UUID=4a0e9043-3d3b-4f1c-8e7d-189b8669f86e
 rootfstype=ext4
@@ -71,3 +113,16 @@ analog-codec cir cpu-clock-1.0GHz-1.1v cpu-clock-1.2GHz-1.3v cpu-clock-1.3GHz-1.
 ls /dev/i2c*
 i2cdetect -y 0
 i2cdetect -y 1
+
+
+
+
+
+
+
+板载LED灯测试说明
+开发板上有两个LED灯，一个绿灯，一个红灯，系统启动时LED灯默认显示
+项目说明			绿灯	红灯
+u-boot 启动阶段		灭	亮
+内核启动到进入系统	亮	灭
+GPIO 口			PL10	 PA20
