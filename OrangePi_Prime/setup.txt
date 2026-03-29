@@ -88,7 +88,7 @@ Agent registered
 
 
 
-
+fdtfile=sun50i-h5-orangepi-prime.dtb
 
 
 ====  dietpiEnv.txt

@@ -1,0 +1,68 @@
+NanoPi M4 支持从 TF 卡启动后，将系统写入板载的 eMMC 模块
+
+方案一：直接克隆当前 DietPi 系统到 eMMC（推荐）
+步骤 1：确认 eMMC 设备名称及容量
+首先，在 DietPi 终端中输入以下命令，查看存储设备列表：
+lsblk
+你会看到类似这样的输出：
+root@DietPi:~# lsblk
+NAME         MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+mmcblk2      179:0    0 14.6G  0 disk
+├─mmcblk2p1  179:1    0  290M  0 part
+└─mmcblk2p2  179:2    0 14.1G  0 part
+mmcblk2boot0 179:32   0    4M  1 disk
+mmcblk2boot1 179:64   0    4M  1 disk
+mmcblk1      179:96   0  7.2G  0 disk
+└─mmcblk1p1  179:97   0  7.2G  0 part /
+mmcblk0：是你当前正在使用的 TF 卡。其下的 mmcblk0p1 和 mmcblk0p2 是它的两个分区，MOUNTPOINT 列为 / 和 /boot，说明系统正在从这里运行。
+mmcblk2：这就是你的板载 eMMC 存储。它下面可能有一个或多个分区（如 mmcblk2p1），以及特殊的 boot0/boot1 分区。你需要记录下它的名字（这里是 mmcblk2）和容量（这里是 7.3G）。
+
+步骤 2：比较容量并处理（如果必要）
+比较 TF 卡（mmcblk0）和 eMMC（mmcblk2）的总容量。
+
+如果 eMMC 容量 ≥ TF 卡已用空间：可以直接进行下一步。
+
+如果 eMMC 容量 < TF 卡总容量：你需要先缩小 TF 卡上的分区，才能将其克隆到较小的 eMMC 上。可以使用 gparted 等工具在另一台 Linux 电脑上操作，具体方法可以参考 DietPi 官方博客的说明。
+
+步骤 3：执行克隆操作
+确认 eMMC 设备名（假设为 /dev/mmcblk2）且容量足够后，执行以下命令进行克隆：
+
+# 注意：of= 后面的设备名请替换为你上一步确认的 eMMC 设备名
+sudo dd if=/dev/mmcblk0 of=/dev/mmcblk2 bs=1M status=progress
+if=/dev/mmcblk0：指定输入文件（Input File），即你的 TF 卡。
+
+of=/dev/mmcblk2：指定输出文件（Output File），即你的 eMMC。⚠️ 请务必反复确认，写错会丢失数据！
+
+bs=1M：每次读写 1MB 的数据，加快速度。
+
+status=progress：显示克隆进度。
+
+这个命令可能需要几分钟到十几分钟，请耐心等待它执行完毕。
+
+步骤 4：完成并启动
+克隆命令执行完成后，输入 sync 确保所有数据写入，然后就可以关机了：
+
+sudo sync
+sudo poweroff
+断电后，拔掉 TF 卡，然后重新上电。NanoPi M4 会自动从 eMMC 启动，你将进入和之前一模一样的 DietPi 系统，且所有配置都已保留。
+
+
+若克隆后需要扩展根分区
+如果启动后根分区大小仍然是 7.2G（未占用全部 eMMC 空间），可以执行：
+dietpi-drive_manager
+选择 eMMC 的设备（/dev/mmcblk2），然后选择“扩展根分区”即可。或者手动用 parted 和 resize2fs 操作。
+
+用键盘 ↓ 键将光标移动到最下面的 “Resize” 选项（前面没有方括号，是一个独立选项）。
+
+按 Enter 或 空格键 执行。
+
+系统会提示你确认，选 Yes，然后工具会自动将根分区扩展到整个 eMMC 的剩余空间。
+
+完成后，按 <Back> 返回主菜单，再 <Exit> 退出。
+
+扩展过程中不会有数据丢失，完成后根分区的总容量就会变成约 14.6G（显示为 14GiB 左右）。
+
+
+
+检查波特率设置（最常见原因）
+NanoPi M4 Debug UART 的波特率是 1500000（1.5Mbps），不是常见的115200
