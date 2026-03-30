@@ -1,891 +1,989 @@
-https://downloads.openwrt.org/snapshots/packages/arm_arm1176jzf-s_vfp/
-
-##################### 树莓派1代固件#########################
-Raspberry Pi A+  BCM2835 ARM1176JZF-S 700Mhz 单核
-
-Raspberry Pi A/A+/B/B+/CM/Zero/ZeroW
-base-files bcm27xx-gpu-fw bcm27xx-utils ca-bundle dnsmasq dropbear e2fsprogs firewall4 fstools kmod-fs-vfat kmod-nft-offload kmod-nls-cp437 kmod-nls-iso8859-1 kmod-sound-arm-bcm2835 kmod-sound-core kmod-usb-hid libc libgcc libustream-mbedtls logd mkf2fs mtd netifd nftables odhcp6c odhcpd-ipv6only opkg partx-utils ppp ppp-mod-pppoe procd-ujail uci uclient-fetch urandom-seed cypress-firmware-43430-sdio brcmfmac-nvram-43430-sdio kmod-brcmfmac wpad-basic-mbedtls iwinfo luci
-
-https://firmware-selector.openwrt.org/?version=24.10.0&target=bcm27xx%2Fbcm2708&id=rpi
-
-nano git-http usbutils openssh-server python3-pip make dc
-kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-firmware rtl8821ae-firmware
-block-mount cfdisk resize2fs fdisk parted
-
-
-##################### 树莓派3代固件#########################
-Raspberry Pi 3 Model B BCM2837 ARM Cortex-A53 1.2GHz 64位四核
-
-Raspberry Pi 3A+/3B/3B+/CM3/Zero2/Zero2W (64bit)
-base-files bcm27xx-gpu-fw bcm27xx-utils ca-bundle dnsmasq dropbear e2fsprogs firewall4 fstools kmod-fs-vfat kmod-nft-offload kmod-nls-cp437 kmod-nls-iso8859-1 kmod-sound-arm-bcm2835 kmod-sound-core kmod-usb-hid libc libgcc libustream-mbedtls logd mkf2fs mtd netifd nftables odhcp6c odhcpd-ipv6only opkg partx-utils ppp ppp-mod-pppoe procd-ujail uci uclient-fetch urandom-seed cypress-firmware-43430-sdio brcmfmac-nvram-43430-sdio cypress-firmware-43455-sdio brcmfmac-nvram-43455-sdio kmod-brcmfmac wpad-basic-mbedtls iwinfo luci
-
-https://firmware-selector.openwrt.org/?version=24.10.0&target=bcm27xx%2Fbcm2710&id=rpi-3
-
-nano git-http usbutils openssh-server python3-pip make dc
-kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-firmware rtl8821ae-firmware
-block-mount cfdisk resize2fs fdisk parted
-
-
-
-#########################################
-
-
-
-# Beware! This script will be in /rom/etc/uci-defaults/ as part of the image.
-# Uncomment lines to apply:
-#
-wlan_name="AlxaTax-dd"
-wlan_password="3gjx7xrx"
-#
-root_password="mzy1029"
-lan_ip_address="192.168.1.21"
-exec >/tmp/setup.log 2>&1
-
-if [ -n "$root_password" ]; then
-  (echo "$root_password"; sleep 1; echo "$root_password") | passwd > /dev/null
-fi
-
-# Configure LAN
-# More options: https://openwrt.org/docs/guide-user/base-system/basic-networking
-if [ -n "$lan_ip_address" ]; then
-  uci set network.lan.ipaddr="$lan_ip_address"
-  uci set network.lan=interface
-  uci set network.wwan=interface
-  uci set network.wwan.proto='dhcp'
-  uci commit network
-fi
-
-# Configure WLAN
-# More options: https://openwrt.org/docs/guide-user/network/wifi/basic#wi-fi_interfaces
-if [ -n "$wlan_name" -a -n "$wlan_password" -a ${#wlan_password} -ge 8 ]; then
-  uci set wireless.@wifi-device[0].channel=7
-  uci set wireless.@wifi-device[0].disabled='0'
-  uci set wireless.@wifi-iface[0].disabled='0'
-  uci set wireless.@wifi-iface[0].network='wwan lan'
-  uci set wireless.@wifi-iface[0].mode='sta'
-  uci set wireless.@wifi-iface[0].encryption='psk2'
-  uci set wireless.@wifi-iface[0].ssid="$wlan_name"
-  uci set wireless.@wifi-iface[0].key="$wlan_password"
-  uci commit wireless
-fi
-
-# Configure firewall
-
-if [ -n "$wlan_name" -a -n "$wlan_password" -a ${#wlan_password} -ge 8 ]; then
-  uci set firewall.@defaults[0].input='ACCEPT'
-  uci set firewall.@defaults[0].output='ACCEPT'
-  uci set firewall.@defaults[0].forward='ACCEPT'
-  uci set firewall.@zone[0].input='ACCEPT'
-  uci set firewall.@zone[0].output='ACCEPT'
-  uci set firewall.@zone[0].forward='ACCEPT'
-  uci set firewall.@zone[1].input='ACCEPT'
-  uci set firewall.@zone[1].output='ACCEPT'
-  uci set firewall.@zone[1].forward='ACCEPT'
-  uci commit firewall
-fi
-
-
-echo "All done!"
-
-#########################################
-
-
-
-iwinfo  # 检查驱动是否安装好。
-
-
-
-nano /etc/config/wireless
-
-config wifi-device 'radio0'
-        option type 'mac80211'
-        option path 'platform/soc/20980000.usb/usb1/1-1/1-1.2/1-1.2:1.0'
-        option band '2g'
-        option channel '7'
-        option htmode 'HT20'
-        option cell_density '0'
-
-config wifi-iface 'wifinet1'
-        option device 'radio0'
-        option mode 'sta'
-        option network 'wwan lan'
-        option ssid 'CMCC-gyHQ'
-        option encryption 'psk2'
-        option key '2fw5f8g7'
-
-################################
-config wifi-iface 'wifinet1'
-        option device 'radio0'
-        option mode 'sta'
-        option network 'wwan lan'
-        option ssid 'AlxaTax-dd'
-        option encryption 'psk2'
-        option key '3gjx7xrx'
-
-
-
-
-
-nano /etc/config/network
-
-config interface 'loopback'
-        option device 'lo'
-        option proto 'static'
-        option ipaddr '127.0.0.1'
-        option netmask '255.0.0.0'
-
-config globals 'globals'
-        option ula_prefix 'fdab:55df:c061::/48'
-
-config device
-        option name 'br-lan'
-        option type 'bridge'
-        list ports 'eth0'
-
-config interface 'lan'
-        option device 'br-lan'
-        option proto 'static'
-        option ipaddr '192.168.1.21'
-        option netmask '255.255.255.0'
-        option ip6assign '60'
-
-config interface 'wwan'
-        option proto 'dhcp'
-
-
-
-
-防火墙设置
-nano /etc/config/firewall
-
-uci show wireless
-
-
-
-
-
-通过SSH直接以root用户身份登录。
-
-nano /etc/ssh/sshd_config
-
-如果你需要设置root用户的密码并登录，可以按照以下步骤操作：
-
-首先，通过其他方式（比如控制台或者telnet）登录到OpenWrt路由器。
-
-设置root用户的密码：
-
-passwd root
-修改/etc/ssh/sshd_config文件，找到PermitRootLogin选项，并将其修改为：
-
-PermitRootLogin yes
-重启SSH服务以应用更改：
-
-/etc/init.d/sshd restart
-现在你应该能够使用SSH客户端以root用户身份登录OpenWrt路由器了。
-
-
-
-
-
-
-######################################  最新版的设置 ######################################
-nano /etc/config/wireless
-
-config wifi-device 'radio0'
-        option type 'mac80211'
-        option path 'platform/soc/20980000.usb/usb1/1-1/1-1:1.0'
-        option band '2g'
-        option channel '1'
-        option htmode 'HT20'
-        option disabled '0'
-
-config wifi-iface 'default_radio0'
-        option device 'radio0'
-        option network 'wwan lan'
-        option mode 'sta'
-        option ssid 'AlxaTax-dd'
-        option encryption 'psk2'
-        option disabled '0'
-        option key '3gjx7xrx'
-
-#######################################################################################
-nano /etc/config/network
-
-config interface 'loopback'
-        option device 'lo'
-        option proto 'static'
-        option ipaddr '127.0.0.1'
-        option netmask '255.0.0.0'
-
-config globals 'globals'
-        option ula_prefix 'fd3f:1ae6:b52f::/48'
-
-config device
-        option name 'br-lan'
-        option type 'bridge'
-        list ports 'eth0'
-
-config interface 'lan'
-        option device 'br-lan'
-        option proto 'static'
-        option ipaddr '192.168.1.21'
-        option netmask '255.255.255.0'
-        option ip6assign '60'
-
-
-config interface 'wwan'
-        option proto 'dhcp'
-
-#######################################################################################
-nano /etc/config/firewall
-
-config defaults
-        option syn_flood        1
-        option input            ACCEPT
-        option output           ACCEPT
-        option forward          ACCEPT
-# Uncomment this line to disable ipv6 rules
-#       option disable_ipv6     1
-
-config zone
-        option name             lan
-        list   network          'lan'
-        option input            ACCEPT
-        option output           ACCEPT
-        option forward          ACCEPT
-
-config zone
-        option name             wan
-        list   network          'wan'
-        list   network          'wan6'
-        option input            ACCEPT
-        option output           ACCEPT
-        option forward          ACCEPT
-        option masq             1
-        option mtu_fix          1
-
-config forwarding
-        option src              lan
-        option dest             wan
-
-# We need to accept udp packets on port 68,
-# see https://dev.openwrt.org/ticket/4108
-config rule
-        option name             Allow-DHCP-Renew
-        option src              wan
-        option proto            udp
-        option dest_port        68
-        option target           ACCEPT
-        option family           ipv4
-
-# Allow IPv4 ping
-config rule
-        option name             Allow-Ping
-        option src              wan
-        option proto            icmp
-        option icmp_type        echo-request
-        option family           ipv4
-        option target           ACCEPT
-
-config rule
-        option name             Allow-IGMP
-        option src              wan
-        option proto            igmp
-        option family           ipv4
-        option target           ACCEPT
-
-# Allow DHCPv6 replies
-# see https://github.com/openwrt/openwrt/issues/5066
-config rule
-        option name             Allow-DHCPv6
-        option src              wan
-        option proto            udp
-        option dest_port        546
-        option family           ipv6
-        option target           ACCEPT
-
-config rule
-        option name             Allow-MLD
-        option src              wan
-        option proto            icmp
-        option src_ip           fe80::/10
-        list icmp_type          '130/0'
-        list icmp_type          '131/0'
-        list icmp_type          '132/0'
-        list icmp_type          '143/0'
-        option family           ipv6
-        option target           ACCEPT
-
-# Allow essential incoming IPv6 ICMP traffic
-config rule
-        option name             Allow-ICMPv6-Input
-        option src              wan
-        option proto    icmp
-        list icmp_type          echo-request
-        list icmp_type          echo-reply
-        list icmp_type          destination-unreachable
-        list icmp_type          packet-too-big
-        list icmp_type          time-exceeded
-        list icmp_type          bad-header
-        list icmp_type          unknown-header-type
-        list icmp_type          router-solicitation
-        list icmp_type          neighbour-solicitation
-        list icmp_type          router-advertisement
-        list icmp_type          neighbour-advertisement
-        option limit            1000/sec
-        option family           ipv6
-        option target           ACCEPT
-
-# Allow essential forwarded IPv6 ICMP traffic
-config rule
-        option name             Allow-ICMPv6-Forward
-        option src              wan
-        option dest             *
-        option proto            icmp
-        list icmp_type          echo-request
-        list icmp_type          echo-reply
-        list icmp_type          destination-unreachable
-        list icmp_type          packet-too-big
-        list icmp_type          time-exceeded
-        list icmp_type          bad-header
-        list icmp_type          unknown-header-type
-        option limit            1000/sec
-        option family           ipv6
-        option target           ACCEPT
-
-config rule
-        option name             Allow-IPSec-ESP
-        option src              wan
-        option dest             lan
-        option proto            esp
-        option target           ACCEPT
-
-config rule
-        option name             Allow-ISAKMP
-        option src              wan
-        option dest             lan
-        option dest_port        500
-        option proto            udp
-        option target           ACCEPT
-
-#######################################################################################
-
-
-
-opkg install luci-i18n-base-zh-cn #安装中文包
-
-## 扩容
-opkg update
-opkg install fdisk
-#查看磁盘
-root@OpenWrt:~# fdisk -l
-
-opkg install parted
-#修复
-root@OpenWrt:~# parted -l
-
-opkg install cfdisk resize2fs block-mount fdisk
-
-cfdisk /dev/mmcblk0
-
-
-#查看当前的所有分区
-ls /dev/mmcblk*
-
-#把/dev/sda1建立为swap交换分区mkfs.ext4
-mkswap /dev/mmcblk0p3
-
-#卸载分区
-umount /dev/mmcblk0p3
-
-#格式化分区
-mkfs.ext4 /dev/mmcblk0p3	
-
-#对分区进行检查
-e2fsck -f /dev/mmcblk0p3 
-
-#调整分区大小
-resize2fs /dev/mmcblk0p3 
-
-#创建文件夹
-mkdir -p /mnt/mmcblk0p3
-
-#将文件夹挂载到/dev/mmcblk0p3分区
-mount /dev/mmcblk0p3 /mnt/mmcblk0p3
-
-在web中进行挂载，并选择启用，挂载点选择“作为根文件系统使用（/）”
-如果没有挂载点，请安装如下工具：
-opkg install block-mount
-
-
-#逐条执行，确保成功
-mkdir -p /tmp/introot
-mkdir -p /tmp/extroot
-mount --bind / /tmp/introot
-mount /dev/mmcblk0p3 /tmp/extroot
-tar -C /tmp/introot -cvf - . | tar -C /tmp/extroot -xf -
-umount /tmp/introot
-umount /tmp/extroot
-
-# 执行完以上后点“web 里的保存并应用”，然后重新启动。
-
-# 重启动系统
-reboot
-
-# 查看磁盘情况。
-root@OpenWrt:~# df  -hT
-
-
-
-
-
-
-
-作为软路由系统的折腾党就要会使用 OpenWrt 的命令，比如有些小白经常把 mips、aarch64、X86 的插件胡乱瞎装，不会区分架构，这时就要用到查看 CPU 架构的命令了，下面就是 OpenWrt 查询维护命令，主要是硬件、系统、磁盘、安装等相关常用命令。
-
-硬件相关
-cat /proc/cpuinfo
-# 查看CPU信息
-
-uname -m
-# 查看CPU架构
-
-cat /proc/meminfo
-# 查看内存使用情况
-
-df -h
-# 查看磁盘的使用率
-系统相关
-uname -a
-# 查看内核信息
-
-opkg print-architecture
-# 可接受的架构
-
-dmesg
-# 读取内核的日志
-
-logread
-# 读取系统日志
-
-ps -w
-# 列出进程
-
-uptime
-# 显示运行时间、CPU负载
-
-vi etc/config/network
-# 修改后台地址或绑定网口
-
-/etc/init.d/uhttpd restart 
-# Luci 重启命令
-
-/etc/init.d/uhttpd enable 
-# 开机自启动  
-
-/etc/init.d/uhttpd start 
-# 启动uhttpd  
-
-/etc/init.d/firewall restart
-# 重启防火墙
-
-/etc/init.d/network restart
-# 重启网络服务  
-
-reboot
-# 重启设备
-安装管理
-opkg update
-# 更新软件包列表
-
-opkg install ***
-# 安装软件包
-
-opkg remove ***
-# 卸载软件包
-
-opkg install *.ipk
-# 批量安装软件包
-
-opkg [install/remove] [包名] --force-depends
-# 强制安装和卸载
-
-opkg list |grep ***
-# 查找软件包
-
-opkg list-installed
-# 列出所有安装的包
-
-opkg info ***
-# 查看包的信息
-
-opkg files ***
-# 查看包的文件
-
-rm -f /var/lock/opkg.lock
-# 清理opkg update缓存文件
-磁盘管理
-fsisk -l 
-# 列出素所有分区表“-u”与“ -l”搭配使用，显示分割数
-
-fsisk -m 
-# 显示菜单和帮助信息
-
-fsisk -a 
-# 活动分区标记/引导分区
-
-fsisk -d 
-# 删除分区
-
-fsisk -l 
-# 显示分区类型
-
-fsisk -n 
-# 新建分区
-
-fsisk -p 
-# 显示分区信息
-
-fsisk -q 
-# 退出不保存
-
-fsisk -t 
-# 设置分区号
-
-fsisk -v 
-# 进行分区检查
-
-fsisk -w 
-# 保存修改
-
-fsisk -x 
-# 扩展应用，高级功能
-
-fsisk -s 
-# 指定分区
-
-fsisk -v 
-# 版本信息
-
-mount –t ntfs-3g /dev/sdb1 /mnt/usb
-# 挂载ntfs硬盘
-
-sleep 30 && mount -t ntfs-3g /dev/sdb1 /mnt/sdb1
-# 挂载磁盘到文件夹
-无线相关
-iwinfo wlan0 info 
-# 查看无线网卡的信息
-
-wifi down 
-wifi up
-# 重启无线服务
-
-iw dev wlan0 scan
-# 扫描热点
-
-iwinfo wlan0 assoclist  
-iw dev wlan0 station dump
-# 查看设备连接的客户端
-其他命令
-passwd
-# 修改登录密码
-
-firstboot
-# 重置命令
-
-chmod +x ***
-# 脚本赋权
-
-nslookup www.baidu.com 202.96.69.38
-# DNS查询测试
-
-du -s /root/* | sort -nr
-# 查看文件目录大小
-
-ifconfig eth0 down
-ifconfig eth0 hw ether XX:XX:XX:XX:XX:XX //更改的MAC地址
-ifconfig eth0 up
-# 更改MAC地址
-
-opkg install vsftpd openssh-sftp-server
-/etc/init.d/vsftpd enable
-/etc/init.d/vsftpd start
-# 安装 SFTP 文件传输
-opkg 软件包管理
-opkg 软件包管理「建议收藏」opkg 工具 (一个 ipkg 变种) 是一个用来从本地软件仓库或互联网软件仓库上下载并安装 OpenWrt 软件包的轻量型软件包管理器。GNU/Linux 用户可能会对 apt-get，aptitude，pacman，yum 等比较熟悉，也会看出其相似之处。它与 NSLU2 上同样用于嵌入式设备的 Optware 也有相似之处。OPKG 没有仅仅将软件安装到一个单独的路径（如：/opt），而…
-
-大家好，又见面了，我是你们的朋友全栈君。
-
-opkg 工具 (一个 ipkg 变种) 是一个用来从本地软件仓库或互联网软件仓库上下载并安装 OpenWrt 软件包的轻量型软件包管理器。
-GNU/Linux 用户可能会对 apt-get，aptitude，pacman，yum 等比较熟悉，也会看出其相似之处。它与 NSLU2 上同样用于嵌入式设备的 Optware 也有相似之处。OPKG 没有仅仅将软件安装到一个单独的路径（如：/opt），而是根文件系统上的一个完整的包管理器。它也包含了增加内核模块与驱动的可能性。OPKG 有时被称为 Entware ，但这主要是针对为嵌入式设备准备的 Entware 仓库。
-
-调用
-opkg 必须有一个子命令参数：
-usage: opkg [options…] sub-command [arguments…]
-
-其中的子命令可以是以下：
-
-软件包管理
-sub-command	description
-update	更新可用软件包列表
-upgrade	升级软件包 要升级一组软件包，运行 opkg upgrade 软件包名 1 软件包名 2 即可。 命令 opkg list-upgradable 可以获取一个可升级软件包的列表。
-install <pkgs | FQDN>	安装一个或多个软件包 eg: opkg install hiawatha opkg install http://downloads.openwrt.org/snapshots/trunk/ar71xx/packages/hiawatha_7.7-2_ar71xx.ipk opkg install /tmp/hiawatha_7.7-2_ar71xx.ipk
-configure	配置一个或者多个未安装的包
-remove <pkgs | globp>	移除一个或多个软件包
-flag	标记一个或多个软件包 每次调用仅允许一个标记。 可用标记有： hold・noprune・user・ok・installed・unpacked
-信息命令
-sub-command	description
-list [pkg | globp]	列出可用软件包 Package name – Version – Description
-list-installed	列出已安装软件包
-list-upgradable	列出可升级的已安装软件包
-list-changed-conffiles	列出用户修改过的配置文件
-files	列出属于软件包 的文件 仅适用于已安装的软件包
-search <file | globp>	列出包含
-info [pkg | globp]	显示软件包 的所有信息
-status [pkg | globp]	显示软件包 的状态
-download	下载软件包 到当前目录
-配置
-调整仓库
-opkg 唯一的配置文件是 /etc/opkg.conf ，它看起来是这样：
-
-src/gz snapshots http://downloads.openwrt.org/snapshots/trunk/ar71xx/packages
-dest root /
-dest ram /tmp
-lists_dir ext /var/opkg-lists
-option overlay_root /overlay
-本地仓库
-可以配置 opkg 从本地获取软件包：
-
-src/gz local file:///path/to/packagesDirectory
-Barrier_breaker 使用多个仓库，每个参考需要个唯一的标识符。逻辑上使用仓库原始的名称。如：
-
-...
-src/gz base file:///path/to/packages/directory/packages/base
-src/gz luci file:///path/to/packages/directory/packages/luci
-src/gz packages file:///path/to/packages/directory/packages/packages
-src/gz oldpackages file:///path/to/packages/directory/packages/oldpackages
-... etc ...
-挂载点
-opkg 有个不为那些 apt 系工具使用者熟悉的有用特性，它可以为任一软件包指定安装目的位置。
-默认的 opkg.conf 包含三个目的位置：
-
-dest root /
-dest ram /tmp
-dest mnt /mnt
-目的位置行的格式很简单，关键字 dest 跟着目的位置名称（可以随便起），然后就是文件系统位置。任一如上配置好的目的位置都可以在 opkg 命令行中使用，如：
-
-opkg install somepackage -d destination_name
-dest 参数必须为 /etc/opkg.conf 中定义的目的位置名。如：-d ram 会将软件包安装到 /tmp/ 下。
-
-基础：学会用 ssh 登录路由器用 linux 命令查看。
-ps 命令查看当前系统运行的进程信息
-free 命令查看内存使用和 swap 挂载情况
-ls 查看目录和文件
-cd 进入退出目录
-vi 查看编辑配置文件
-安装命令：
-
-opkg update
-opkg install nano
-uci set network.lan.ipaddr=[lan ip]
-
-使用 pppoe 设置
-Shell 代码
-uci set network.wan.proto=pppoe // 设置 wan 口类型为 pppoe
-uci set network.wan.username=[上网帐户]
-uci set network.wan.password=[上网密码] // 这两行设置 pppoe 用户名和密码
-
-如果要挂在上级路由下面，就需要进行下面的设置
-Shell 代码
-uci set network.wan.proto=none // 关掉 wan
-uci set network.lan.gateway=[上级路由 ip] // 网关指向上级路由
-uci set network.lan.dns=[上级路由 ip] //dns 指向上级路由
-uci set dhcp.lan.ignore=1 // 关掉 lan 的 dhcp
-
-最后对无线网络进行配置
-Shell 代码
-uci set wireless.@wifi-device [0].disabled=0 // 打开无线
-uci set wireless.@wifi-device [0].txpower=17 // 设置功率为 17dbm 太高会烧无线模块
-uci set wireless.@wifi-device [0].channel=6 // 设置无线信道为 6
-uci set wireless.@wifi-iface [0].mode=ap // 设置无线模式为 ap
-uci set wireless.@wifi-iface [0].ssid=[自己设置 SSID] // 设置无线 SSID
-uci set wireless.@wifi-iface [0].network=lan // 无线链接到 lan 上
-uci set wireless.@wifi-iface [0].encryption=psk2 // 设置加密为 WPA2-PSK
-uci set wireless.@wifi-iface [0].key=[密码] // 设置无线密码
-
-提交应用配置
-Shell 代码
-uci commit // 应用
-/etc/init.d/network restart // 重启网络服务
-
-安装 luci 管理界面
-Shell 代码
-opkg update // 更新软件列表
-opkg list-installed // 查看已安装软件
-opkg install luci // 安装 LUCI
-opkg install luci-i18n-chinese // 支持中文
-
-luci-app-firewall - 0.10.0-1
-luci-i18n-english - 0.10.0-1
-luci-lib-core - 0.10.0-1
-luci-lib-ipkg - 0.10.0-1
-luci-lib-lmo - 0.10.0-1
-luci-lib-nixio - 0.10.0-1
-luci-lib-sys - 0.10.0-1
-luci-lib-web - 0.10.0-1
-luci-mod-admin-core - 0.10.0-1
-luci-mod-admin-full - 0.10.0-1
-luci-proto-core - 0.10.0-1
-luci-proto-ppp - 0.10.0-1
-luci-sgi-cgi - 0.10.0-1
-luci-theme-base - 0.10.0-1
-luci-theme-openwrt - 0.10.0-1
-
-即可完成 LUCI 的安装。
-输入以下命令开启支持 web 服务的 uhttpd，并设置其为自启动：
-Shell 代码
-/etc/init.d/uhttpd enable # 开机自启动
-/etc/init.d/uhttpd start # 启动 uhttpd
-
-Wifidog
-你可以尝试执行以下命令安装 Wifidog：
-opkg update # Optional
-opkg install wifidog
-–sftp 安装
-opkg update
-opkg install vsftpd openssh-sftp-server
-/etc/init.d/vsftpd enable
-/etc/init.d/vsftpd start
-
-端口转发命令：
-通过修改 vi /etc/config/firewall 这个文件来实现开放自己需要的端口到外网。
-
-config rule ‘httpdwan’
-option src ‘wan’
-option dest_port ‘8088’
-option proto ‘tcp’
-option target ‘ACCEPT’
-option name ‘’’’httpd wan accept tcp port 8088’’’’
-
-保存后，执行 /etc/init.d/firewall restart 重启防火墙。
-
-openwrt 应用后台运行、开机自启动
-后台运行
-实际上要一个应用后台运行，在输入命令的时候加上 “&” 符号就可以了，向下面
-
-helloworld &
-开启自启动
-开机自启动这好像还是挺多方法的，一个是在 /etc/init.d 目录编写文件，一个是在网页上的开机运行脚本上加上上面后台运行的命令。
-
-编写自启动脚本
-在 openwrt 开发板命令行中输入
-
-vi /etc/init.d/mystart
-里面输入如下内容：
-
-#!/bin/sh /etc/rc.common
-START=99
-STOP=15
-
-start(){
-    echo start helloword
-    helloword &
-}
-
-stop(){
-    echo stop helloword
-}
-
-restart(){
-    echo restart helloword
-}
-
-enable(){
-    echo enable helloword
-}
-
-disable(){
-    echo disable helloword
-}
-命令应该很好理解，前面 START 和 STOP 是启动和关闭的优先级。
-
-下面是另一种自启动脚本的写法，应该是差不多，注释写的也挺清楚了
-
-#!/bin/sh /etc/rc.common
-
-START=99 # 执行的顺序，按照字符串顺序排序并不是数字排序
-STOP=15
-SERVICE=helloword
-PROG=/bin/helloword
-USE_PROCD=1 # 使用procd启动
-
-# start_service 函数必须要重新定义
-start_service()
-{
-    echo service helloword start
-    procd_open_instance  # 创建一个实例， 在 procd 看来一个应用程序可以多个实例
-    # ubus call service list 可以查看实例
-    procd_set_param command $PROG # mycode执行的命令是"/app/mycode"， 若后面有参数可以直接在后面加上
-    procd_set_param respawn # 定义respawn参数，告知procd当mycode程序退出后尝试进行重启
-    # procd_close_instance # 关闭实例
-}
-
-编写完文件后还应该记得改一下权限，让脚本能够执行
-
-cd /etc
-chmod -R 777 init.d/mystart #设置权限，否则无法激活开机启动，提示权限不足
-使用的时候按下面输入命令就可以，和普通服务类似
-
-/etc/init.d/mystart enable #激活开机启动
-/etc/init.d/mystart start #运行start函数启动程序
-在网页上配置自启动
-由于这项目是上一家公司的时候开发的了，都快一年了，源码都在之前公司的笔记本电脑里面，自己电脑没源码，就简单讲讲。
-
-先要打开 openwrt 的网页控制界面，里面找到自启动功能，在里面的文本行中加入下面命令
-
-helloword &
-实际上使用起来，好像在网页上配置的自启动还好一些，用配置文件写的但是还总出错，当时是对 4G 上网模块有影响，具体记不清了。当时分析出错的原因是，用配置文件写的命令在软件被停止后会尝试重新启动，当然如果你没遇到这些问题，两种方法都是可以的。
-
-自启动进阶
-网上的博客一般到这里就完了，可是我当时不想做差不多先生，我将自启动脚本写到我们的源码文件中去，在安装的时候就给自动弄好，简单省事，下面看看写法。
-
-先编写配置文件
-这里再源码目录总编写我们的自启动脚本文件，以上一篇的 helloword 为例
-
-mkdir ~/openwrt/package/hellworld/auto
-cd  ~/openwrt/package/hellworld/auto
-这里新起了一个目录来存放我们的配置文件，内容和上面一样，不说了。
-
-接下来的重点是编写外层的 Makefile 文件，在复制那一段将我们的配置文件复制到 /etc/init.d/ 目录中去
-
-define Package/helloword /install
-	echo "Here is Package/install"
-	$(INSTALL_DIR) $(1)/bin $(1)/etc/init.d/
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/helloword $(1)/bin/
-	$(INSTALL_BIN) ./auto/mystart $(1)/etc/init.d/
-endef
-注意这里的 $(INSTALL_BIN)，复制的是二进制文件，权限问题我忘了，如果启动不了，也还是按上面的方法增加运行权限吧。
-
-
-
-
-
-USB模式开关
-3G/4G USB调制解调器或加密狗（以及一些智能手机）最初通常以虚拟CD-ROM驱动器的形式出现，提供在Windows/Mac上使用它们的驱动程序和实用程序，因此通常需要采取一些措施将其切换到适当的工作模式。
-为了暴露不同的接口，一些USB调制解调器可能还需要切换到另一种组合。
-usb modeswitch包包括usbmode工具，该工具具有基于json的配置，与标准的Linux usb_modeswitch二进制文件形成对比，以及一个Procd服务，该服务在usb设备插入后自动切换usb设备。
-/etc/usb-mode.json配置文件部分如下所示：
-nano /etc/usb-mode.json
-{
-	"messages" : [""],
-	"devices" : {
-                "0bda:a192": {
-                        "*": {
-                                "t_vendor": 8192,
-                                "t_product": [ 0135 ],
-                                "mode": "StandardEject",
-                                "msg": [  ]
-                        }
-                },
-	}
+https://downloads.openwrt.org/snapshots/packages/arm_arm1176jzf-s_vfp/
+
+##################### 树莓派1代固件#########################
+Raspberry Pi A+  BCM2835 ARM1176JZF-S 700Mhz 单核
+
+Raspberry Pi A/A+/B/B+/CM/Zero/ZeroW
+base-files bcm27xx-gpu-fw bcm27xx-utils ca-bundle dnsmasq dropbear e2fsprogs firewall4 fstools kmod-fs-vfat kmod-nft-offload kmod-nls-cp437 kmod-nls-iso8859-1 kmod-sound-arm-bcm2835 kmod-sound-core kmod-usb-hid libc libgcc libustream-mbedtls logd mkf2fs mtd netifd nftables odhcp6c odhcpd-ipv6only opkg partx-utils ppp ppp-mod-pppoe procd-ujail uci uclient-fetch urandom-seed cypress-firmware-43430-sdio brcmfmac-nvram-43430-sdio kmod-brcmfmac wpad-basic-mbedtls iwinfo luci
+
+https://firmware-selector.openwrt.org/?version=24.10.0&target=bcm27xx%2Fbcm2708&id=rpi
+
+nano git-http usbutils openssh-server python3-pip make dc
+kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-firmware rtl8821ae-firmware
+block-mount cfdisk resize2fs fdisk parted
+
+
+##################### 树莓派3代固件#########################
+Raspberry Pi 3 Model B BCM2837 ARM Cortex-A53 1.2GHz 64位四核
+
+Raspberry Pi 3A+/3B/3B+/CM3/Zero2/Zero2W (64bit)
+base-files bcm27xx-gpu-fw bcm27xx-utils ca-bundle dnsmasq dropbear e2fsprogs firewall4 fstools kmod-fs-vfat kmod-nft-offload kmod-nls-cp437 kmod-nls-iso8859-1 kmod-sound-arm-bcm2835 kmod-sound-core kmod-usb-hid libc libgcc libustream-mbedtls logd mkf2fs mtd netifd nftables odhcp6c odhcpd-ipv6only opkg partx-utils ppp ppp-mod-pppoe procd-ujail uci uclient-fetch urandom-seed cypress-firmware-43430-sdio brcmfmac-nvram-43430-sdio cypress-firmware-43455-sdio brcmfmac-nvram-43455-sdio kmod-brcmfmac wpad-basic-mbedtls iwinfo luci
+
+https://firmware-selector.openwrt.org/?version=24.10.0&target=bcm27xx%2Fbcm2710&id=rpi-3
+
+nano git-http usbutils openssh-server python3-pip make dc
+kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-firmware rtl8821ae-firmware
+block-mount cfdisk resize2fs fdisk parted
+
+
+
+#########################################
+
+
+
+# Beware! This script will be in /rom/etc/uci-defaults/ as part of the image.
+# Uncomment lines to apply:
+#
+wlan_name="AlxaTax-dd"
+wlan_password="3gjx7xrx"
+#
+root_password="mzy1029"
+lan_ip_address="192.168.1.21"
+exec >/tmp/setup.log 2>&1
+
+if [ -n "$root_password" ]; then
+  (echo "$root_password"; sleep 1; echo "$root_password") | passwd > /dev/null
+fi
+
+# Configure LAN
+# More options: https://openwrt.org/docs/guide-user/base-system/basic-networking
+if [ -n "$lan_ip_address" ]; then
+  uci set network.lan.ipaddr="$lan_ip_address"
+  uci set network.lan=interface
+  uci set network.wwan=interface
+  uci set network.wwan.proto='dhcp'
+  uci commit network
+fi
+
+# Configure WLAN
+# More options: https://openwrt.org/docs/guide-user/network/wifi/basic#wi-fi_interfaces
+if [ -n "$wlan_name" -a -n "$wlan_password" -a ${#wlan_password} -ge 8 ]; then
+  uci set wireless.@wifi-device[0].channel=7
+  uci set wireless.@wifi-device[0].disabled='0'
+  uci set wireless.@wifi-iface[0].disabled='0'
+  uci set wireless.@wifi-iface[0].network='wwan lan'
+  uci set wireless.@wifi-iface[0].mode='sta'
+  uci set wireless.@wifi-iface[0].encryption='psk2'
+  uci set wireless.@wifi-iface[0].ssid="$wlan_name"
+  uci set wireless.@wifi-iface[0].key="$wlan_password"
+  uci commit wireless
+fi
+
+# Configure firewall
+
+if [ -n "$wlan_name" -a -n "$wlan_password" -a ${#wlan_password} -ge 8 ]; then
+  uci set firewall.@defaults[0].input='ACCEPT'
+  uci set firewall.@defaults[0].output='ACCEPT'
+  uci set firewall.@defaults[0].forward='ACCEPT'
+  uci set firewall.@zone[0].input='ACCEPT'
+  uci set firewall.@zone[0].output='ACCEPT'
+  uci set firewall.@zone[0].forward='ACCEPT'
+  uci set firewall.@zone[1].input='ACCEPT'
+  uci set firewall.@zone[1].output='ACCEPT'
+  uci set firewall.@zone[1].forward='ACCEPT'
+  uci commit firewall
+fi
+
+
+echo "All done!"
+
+#########################################
+
+
+
+iwinfo  # 检查驱动是否安装好。
+
+
+
+nano /etc/config/wireless
+
+config wifi-device 'radio0'
+        option type 'mac80211'
+        option path 'platform/soc/20980000.usb/usb1/1-1/1-1.2/1-1.2:1.0'
+        option band '2g'
+        option channel '7'
+        option htmode 'HT20'
+        option cell_density '0'
+
+config wifi-iface 'wifinet1'
+        option device 'radio0'
+        option mode 'sta'
+        option network 'wwan lan'
+        option ssid 'CMCC-gyHQ'
+        option encryption 'psk2'
+        option key '2fw5f8g7'
+
+################################
+config wifi-iface 'wifinet1'
+        option device 'radio0'
+        option mode 'sta'
+        option network 'wwan lan'
+        option ssid 'AlxaTax-dd'
+        option encryption 'psk2'
+        option key '3gjx7xrx'
+
+
+
+
+
+nano /etc/config/network
+
+config interface 'loopback'
+        option device 'lo'
+        option proto 'static'
+        option ipaddr '127.0.0.1'
+        option netmask '255.0.0.0'
+
+config globals 'globals'
+        option ula_prefix 'fdab:55df:c061::/48'
+
+config device
+        option name 'br-lan'
+        option type 'bridge'
+        list ports 'eth0'
+
+config interface 'lan'
+        option device 'br-lan'
+        option proto 'static'
+        option ipaddr '192.168.1.21'
+        option netmask '255.255.255.0'
+        option ip6assign '60'
+
+config interface 'wwan'
+        option proto 'dhcp'
+
+
+
+
+防火墙设置
+nano /etc/config/firewall
+
+uci show wireless
+
+
+
+
+
+通过SSH直接以root用户身份登录。
+
+nano /etc/ssh/sshd_config
+
+如果你需要设置root用户的密码并登录，可以按照以下步骤操作：
+
+首先，通过其他方式（比如控制台或者telnet）登录到OpenWrt路由器。
+
+设置root用户的密码：
+
+passwd root
+修改/etc/ssh/sshd_config文件，找到PermitRootLogin选项，并将其修改为：
+
+PermitRootLogin yes
+重启SSH服务以应用更改：
+
+/etc/init.d/sshd restart
+现在你应该能够使用SSH客户端以root用户身份登录OpenWrt路由器了。
+
+
+
+
+
+
+######################################  最新版的设置 ######################################
+nano /etc/config/wireless
+
+config wifi-device 'radio0'
+        option type 'mac80211'
+        option path 'platform/soc/20980000.usb/usb1/1-1/1-1:1.0'
+        option band '2g'
+        option channel '1'
+        option htmode 'HT20'
+        option disabled '0'
+
+config wifi-iface 'default_radio0'
+        option device 'radio0'
+        option network 'wwan lan'
+        option mode 'sta'
+        option ssid 'AlxaTax-dd'
+        option encryption 'psk2'
+        option disabled '0'
+        option key '3gjx7xrx'
+
+#######################################################################################
+nano /etc/config/network
+
+config interface 'loopback'
+        option device 'lo'
+        option proto 'static'
+        option ipaddr '127.0.0.1'
+        option netmask '255.0.0.0'
+
+config globals 'globals'
+        option ula_prefix 'fd3f:1ae6:b52f::/48'
+
+config device
+        option name 'br-lan'
+        option type 'bridge'
+        list ports 'eth0'
+
+config interface 'lan'
+        option device 'br-lan'
+        option proto 'static'
+        option ipaddr '192.168.1.21'
+        option netmask '255.255.255.0'
+        option ip6assign '60'
+
+
+config interface 'wwan'
+        option proto 'dhcp'
+
+#######################################################################################
+nano /etc/config/firewall
+
+config defaults
+        option syn_flood        1
+        option input            ACCEPT
+        option output           ACCEPT
+        option forward          ACCEPT
+# Uncomment this line to disable ipv6 rules
+#       option disable_ipv6     1
+
+config zone
+        option name             lan
+        list   network          'lan'
+        option input            ACCEPT
+        option output           ACCEPT
+        option forward          ACCEPT
+
+config zone
+        option name             wan
+        list   network          'wan'
+        list   network          'wan6'
+        option input            ACCEPT
+        option output           ACCEPT
+        option forward          ACCEPT
+        option masq             1
+        option mtu_fix          1
+
+config forwarding
+        option src              lan
+        option dest             wan
+
+# We need to accept udp packets on port 68,
+# see https://dev.openwrt.org/ticket/4108
+config rule
+        option name             Allow-DHCP-Renew
+        option src              wan
+        option proto            udp
+        option dest_port        68
+        option target           ACCEPT
+        option family           ipv4
+
+# Allow IPv4 ping
+config rule
+        option name             Allow-Ping
+        option src              wan
+        option proto            icmp
+        option icmp_type        echo-request
+        option family           ipv4
+        option target           ACCEPT
+
+config rule
+        option name             Allow-IGMP
+        option src              wan
+        option proto            igmp
+        option family           ipv4
+        option target           ACCEPT
+
+# Allow DHCPv6 replies
+# see https://github.com/openwrt/openwrt/issues/5066
+config rule
+        option name             Allow-DHCPv6
+        option src              wan
+        option proto            udp
+        option dest_port        546
+        option family           ipv6
+        option target           ACCEPT
+
+config rule
+        option name             Allow-MLD
+        option src              wan
+        option proto            icmp
+        option src_ip           fe80::/10
+        list icmp_type          '130/0'
+        list icmp_type          '131/0'
+        list icmp_type          '132/0'
+        list icmp_type          '143/0'
+        option family           ipv6
+        option target           ACCEPT
+
+# Allow essential incoming IPv6 ICMP traffic
+config rule
+        option name             Allow-ICMPv6-Input
+        option src              wan
+        option proto    icmp
+        list icmp_type          echo-request
+        list icmp_type          echo-reply
+        list icmp_type          destination-unreachable
+        list icmp_type          packet-too-big
+        list icmp_type          time-exceeded
+        list icmp_type          bad-header
+        list icmp_type          unknown-header-type
+        list icmp_type          router-solicitation
+        list icmp_type          neighbour-solicitation
+        list icmp_type          router-advertisement
+        list icmp_type          neighbour-advertisement
+        option limit            1000/sec
+        option family           ipv6
+        option target           ACCEPT
+
+# Allow essential forwarded IPv6 ICMP traffic
+config rule
+        option name             Allow-ICMPv6-Forward
+        option src              wan
+        option dest             *
+        option proto            icmp
+        list icmp_type          echo-request
+        list icmp_type          echo-reply
+        list icmp_type          destination-unreachable
+        list icmp_type          packet-too-big
+        list icmp_type          time-exceeded
+        list icmp_type          bad-header
+        list icmp_type          unknown-header-type
+        option limit            1000/sec
+        option family           ipv6
+        option target           ACCEPT
+
+config rule
+        option name             Allow-IPSec-ESP
+        option src              wan
+        option dest             lan
+        option proto            esp
+        option target           ACCEPT
+
+config rule
+        option name             Allow-ISAKMP
+        option src              wan
+        option dest             lan
+        option dest_port        500
+        option proto            udp
+        option target           ACCEPT
+
+#######################################################################################
+
+
+
+opkg install luci-i18n-base-zh-cn #安装中文包
+
+## 扩容
+opkg update
+opkg install fdisk
+#查看磁盘
+root@OpenWrt:~# fdisk -l
+
+opkg install parted
+#修复
+root@OpenWrt:~# parted -l
+
+opkg install cfdisk resize2fs block-mount fdisk
+
+cfdisk /dev/mmcblk0
+
+
+#查看当前的所有分区
+ls /dev/mmcblk*
+
+#把/dev/sda1建立为swap交换分区mkfs.ext4
+mkswap /dev/mmcblk0p3
+
+#卸载分区
+umount /dev/mmcblk0p3
+
+#格式化分区
+mkfs.ext4 /dev/mmcblk0p3	
+
+#对分区进行检查
+e2fsck -f /dev/mmcblk0p3 
+
+#调整分区大小
+resize2fs /dev/mmcblk0p3 
+
+#创建文件夹
+mkdir -p /mnt/mmcblk0p3
+
+#将文件夹挂载到/dev/mmcblk0p3分区
+mount /dev/mmcblk0p3 /mnt/mmcblk0p3
+
+在web中进行挂载，并选择启用，挂载点选择“作为根文件系统使用（/）”
+如果没有挂载点，请安装如下工具：
+opkg install block-mount
+
+
+#逐条执行，确保成功
+mkdir -p /tmp/introot
+mkdir -p /tmp/extroot
+mount --bind / /tmp/introot
+mount /dev/mmcblk0p3 /tmp/extroot
+tar -C /tmp/introot -cvf - . | tar -C /tmp/extroot -xf -
+umount /tmp/introot
+umount /tmp/extroot
+
+# 执行完以上后点“web 里的保存并应用”，然后重新启动。
+
+# 重启动系统
+reboot
+
+# 查看磁盘情况。
+root@OpenWrt:~# df  -hT
+
+
+
+
+
+
+
+作为软路由系统的折腾党就要会使用 OpenWrt 的命令，比如有些小白经常把 mips、aarch64、X86 的插件胡乱瞎装，不会区分架构，这时就要用到查看 CPU 架构的命令了，下面就是 OpenWrt 查询维护命令，主要是硬件、系统、磁盘、安装等相关常用命令。
+
+硬件相关
+cat /proc/cpuinfo
+# 查看CPU信息
+
+uname -m
+# 查看CPU架构
+
+cat /proc/meminfo
+# 查看内存使用情况
+
+df -h
+# 查看磁盘的使用率
+系统相关
+uname -a
+# 查看内核信息
+
+opkg print-architecture
+# 可接受的架构
+
+dmesg
+# 读取内核的日志
+
+logread
+# 读取系统日志
+
+ps -w
+# 列出进程
+
+uptime
+# 显示运行时间、CPU负载
+
+vi etc/config/network
+# 修改后台地址或绑定网口
+
+/etc/init.d/uhttpd restart 
+# Luci 重启命令
+
+/etc/init.d/uhttpd enable 
+# 开机自启动  
+
+/etc/init.d/uhttpd start 
+# 启动uhttpd  
+
+/etc/init.d/firewall restart
+# 重启防火墙
+
+/etc/init.d/network restart
+# 重启网络服务  
+
+reboot
+# 重启设备
+安装管理
+opkg update
+# 更新软件包列表
+
+opkg install ***
+# 安装软件包
+
+opkg remove ***
+# 卸载软件包
+
+opkg install *.ipk
+# 批量安装软件包
+
+opkg [install/remove] [包名] --force-depends
+# 强制安装和卸载
+
+opkg list |grep ***
+# 查找软件包
+
+opkg list-installed
+# 列出所有安装的包
+
+opkg info ***
+# 查看包的信息
+
+opkg files ***
+# 查看包的文件
+
+rm -f /var/lock/opkg.lock
+# 清理opkg update缓存文件
+磁盘管理
+fsisk -l 
+# 列出素所有分区表“-u”与“ -l”搭配使用，显示分割数
+
+fsisk -m 
+# 显示菜单和帮助信息
+
+fsisk -a 
+# 活动分区标记/引导分区
+
+fsisk -d 
+# 删除分区
+
+fsisk -l 
+# 显示分区类型
+
+fsisk -n 
+# 新建分区
+
+fsisk -p 
+# 显示分区信息
+
+fsisk -q 
+# 退出不保存
+
+fsisk -t 
+# 设置分区号
+
+fsisk -v 
+# 进行分区检查
+
+fsisk -w 
+# 保存修改
+
+fsisk -x 
+# 扩展应用，高级功能
+
+fsisk -s 
+# 指定分区
+
+fsisk -v 
+# 版本信息
+
+mount –t ntfs-3g /dev/sdb1 /mnt/usb
+# 挂载ntfs硬盘
+
+sleep 30 && mount -t ntfs-3g /dev/sdb1 /mnt/sdb1
+# 挂载磁盘到文件夹
+无线相关
+iwinfo wlan0 info 
+# 查看无线网卡的信息
+
+wifi down 
+wifi up
+# 重启无线服务
+
+iw dev wlan0 scan
+# 扫描热点
+
+iwinfo wlan0 assoclist  
+iw dev wlan0 station dump
+# 查看设备连接的客户端
+其他命令
+passwd
+# 修改登录密码
+
+firstboot
+# 重置命令
+
+chmod +x ***
+# 脚本赋权
+
+nslookup www.baidu.com 202.96.69.38
+# DNS查询测试
+
+du -s /root/* | sort -nr
+# 查看文件目录大小
+
+ifconfig eth0 down
+ifconfig eth0 hw ether XX:XX:XX:XX:XX:XX //更改的MAC地址
+ifconfig eth0 up
+# 更改MAC地址
+
+opkg install vsftpd openssh-sftp-server
+/etc/init.d/vsftpd enable
+/etc/init.d/vsftpd start
+# 安装 SFTP 文件传输
+opkg 软件包管理
+opkg 软件包管理「建议收藏」opkg 工具 (一个 ipkg 变种) 是一个用来从本地软件仓库或互联网软件仓库上下载并安装 OpenWrt 软件包的轻量型软件包管理器。GNU/Linux 用户可能会对 apt-get，aptitude，pacman，yum 等比较熟悉，也会看出其相似之处。它与 NSLU2 上同样用于嵌入式设备的 Optware 也有相似之处。OPKG 没有仅仅将软件安装到一个单独的路径（如：/opt），而…
+
+大家好，又见面了，我是你们的朋友全栈君。
+
+opkg 工具 (一个 ipkg 变种) 是一个用来从本地软件仓库或互联网软件仓库上下载并安装 OpenWrt 软件包的轻量型软件包管理器。
+GNU/Linux 用户可能会对 apt-get，aptitude，pacman，yum 等比较熟悉，也会看出其相似之处。它与 NSLU2 上同样用于嵌入式设备的 Optware 也有相似之处。OPKG 没有仅仅将软件安装到一个单独的路径（如：/opt），而是根文件系统上的一个完整的包管理器。它也包含了增加内核模块与驱动的可能性。OPKG 有时被称为 Entware ，但这主要是针对为嵌入式设备准备的 Entware 仓库。
+
+调用
+opkg 必须有一个子命令参数：
+usage: opkg [options…] sub-command [arguments…]
+
+其中的子命令可以是以下：
+
+软件包管理
+sub-command	description
+update	更新可用软件包列表
+upgrade	升级软件包 要升级一组软件包，运行 opkg upgrade 软件包名 1 软件包名 2 即可。 命令 opkg list-upgradable 可以获取一个可升级软件包的列表。
+install <pkgs | FQDN>	安装一个或多个软件包 eg: opkg install hiawatha opkg install http://downloads.openwrt.org/snapshots/trunk/ar71xx/packages/hiawatha_7.7-2_ar71xx.ipk opkg install /tmp/hiawatha_7.7-2_ar71xx.ipk
+configure	配置一个或者多个未安装的包
+remove <pkgs | globp>	移除一个或多个软件包
+flag	标记一个或多个软件包 每次调用仅允许一个标记。 可用标记有： hold・noprune・user・ok・installed・unpacked
+信息命令
+sub-command	description
+list [pkg | globp]	列出可用软件包 Package name – Version – Description
+list-installed	列出已安装软件包
+list-upgradable	列出可升级的已安装软件包
+list-changed-conffiles	列出用户修改过的配置文件
+files	列出属于软件包 的文件 仅适用于已安装的软件包
+search <file | globp>	列出包含
+info [pkg | globp]	显示软件包 的所有信息
+status [pkg | globp]	显示软件包 的状态
+download	下载软件包 到当前目录
+配置
+调整仓库
+opkg 唯一的配置文件是 /etc/opkg.conf ，它看起来是这样：
+
+src/gz snapshots http://downloads.openwrt.org/snapshots/trunk/ar71xx/packages
+dest root /
+dest ram /tmp
+lists_dir ext /var/opkg-lists
+option overlay_root /overlay
+本地仓库
+可以配置 opkg 从本地获取软件包：
+
+src/gz local file:///path/to/packagesDirectory
+Barrier_breaker 使用多个仓库，每个参考需要个唯一的标识符。逻辑上使用仓库原始的名称。如：
+
+...
+src/gz base file:///path/to/packages/directory/packages/base
+src/gz luci file:///path/to/packages/directory/packages/luci
+src/gz packages file:///path/to/packages/directory/packages/packages
+src/gz oldpackages file:///path/to/packages/directory/packages/oldpackages
+... etc ...
+挂载点
+opkg 有个不为那些 apt 系工具使用者熟悉的有用特性，它可以为任一软件包指定安装目的位置。
+默认的 opkg.conf 包含三个目的位置：
+
+dest root /
+dest ram /tmp
+dest mnt /mnt
+目的位置行的格式很简单，关键字 dest 跟着目的位置名称（可以随便起），然后就是文件系统位置。任一如上配置好的目的位置都可以在 opkg 命令行中使用，如：
+
+opkg install somepackage -d destination_name
+dest 参数必须为 /etc/opkg.conf 中定义的目的位置名。如：-d ram 会将软件包安装到 /tmp/ 下。
+
+基础：学会用 ssh 登录路由器用 linux 命令查看。
+ps 命令查看当前系统运行的进程信息
+free 命令查看内存使用和 swap 挂载情况
+ls 查看目录和文件
+cd 进入退出目录
+vi 查看编辑配置文件
+安装命令：
+
+opkg update
+opkg install nano
+uci set network.lan.ipaddr=[lan ip]
+
+使用 pppoe 设置
+Shell 代码
+uci set network.wan.proto=pppoe // 设置 wan 口类型为 pppoe
+uci set network.wan.username=[上网帐户]
+uci set network.wan.password=[上网密码] // 这两行设置 pppoe 用户名和密码
+
+如果要挂在上级路由下面，就需要进行下面的设置
+Shell 代码
+uci set network.wan.proto=none // 关掉 wan
+uci set network.lan.gateway=[上级路由 ip] // 网关指向上级路由
+uci set network.lan.dns=[上级路由 ip] //dns 指向上级路由
+uci set dhcp.lan.ignore=1 // 关掉 lan 的 dhcp
+
+最后对无线网络进行配置
+Shell 代码
+uci set wireless.@wifi-device [0].disabled=0 // 打开无线
+uci set wireless.@wifi-device [0].txpower=17 // 设置功率为 17dbm 太高会烧无线模块
+uci set wireless.@wifi-device [0].channel=6 // 设置无线信道为 6
+uci set wireless.@wifi-iface [0].mode=ap // 设置无线模式为 ap
+uci set wireless.@wifi-iface [0].ssid=[自己设置 SSID] // 设置无线 SSID
+uci set wireless.@wifi-iface [0].network=lan // 无线链接到 lan 上
+uci set wireless.@wifi-iface [0].encryption=psk2 // 设置加密为 WPA2-PSK
+uci set wireless.@wifi-iface [0].key=[密码] // 设置无线密码
+
+提交应用配置
+Shell 代码
+uci commit // 应用
+/etc/init.d/network restart // 重启网络服务
+
+安装 luci 管理界面
+Shell 代码
+opkg update // 更新软件列表
+opkg list-installed // 查看已安装软件
+opkg install luci // 安装 LUCI
+opkg install luci-i18n-chinese // 支持中文
+
+luci-app-firewall - 0.10.0-1
+luci-i18n-english - 0.10.0-1
+luci-lib-core - 0.10.0-1
+luci-lib-ipkg - 0.10.0-1
+luci-lib-lmo - 0.10.0-1
+luci-lib-nixio - 0.10.0-1
+luci-lib-sys - 0.10.0-1
+luci-lib-web - 0.10.0-1
+luci-mod-admin-core - 0.10.0-1
+luci-mod-admin-full - 0.10.0-1
+luci-proto-core - 0.10.0-1
+luci-proto-ppp - 0.10.0-1
+luci-sgi-cgi - 0.10.0-1
+luci-theme-base - 0.10.0-1
+luci-theme-openwrt - 0.10.0-1
+
+即可完成 LUCI 的安装。
+输入以下命令开启支持 web 服务的 uhttpd，并设置其为自启动：
+Shell 代码
+/etc/init.d/uhttpd enable # 开机自启动
+/etc/init.d/uhttpd start # 启动 uhttpd
+
+Wifidog
+你可以尝试执行以下命令安装 Wifidog：
+opkg update # Optional
+opkg install wifidog
+–sftp 安装
+opkg update
+opkg install vsftpd openssh-sftp-server
+/etc/init.d/vsftpd enable
+/etc/init.d/vsftpd start
+
+端口转发命令：
+通过修改 vi /etc/config/firewall 这个文件来实现开放自己需要的端口到外网。
+
+config rule ‘httpdwan’
+option src ‘wan’
+option dest_port ‘8088’
+option proto ‘tcp’
+option target ‘ACCEPT’
+option name ‘’’’httpd wan accept tcp port 8088’’’’
+
+保存后，执行 /etc/init.d/firewall restart 重启防火墙。
+
+openwrt 应用后台运行、开机自启动
+后台运行
+实际上要一个应用后台运行，在输入命令的时候加上 “&” 符号就可以了，向下面
+
+helloworld &
+开启自启动
+开机自启动这好像还是挺多方法的，一个是在 /etc/init.d 目录编写文件，一个是在网页上的开机运行脚本上加上上面后台运行的命令。
+
+编写自启动脚本
+在 openwrt 开发板命令行中输入
+
+vi /etc/init.d/mystart
+里面输入如下内容：
+
+#!/bin/sh /etc/rc.common
+START=99
+STOP=15
+
+start(){
+    echo start helloword
+    helloword &
 }
+
+stop(){
+    echo stop helloword
+}
+
+restart(){
+    echo restart helloword
+}
+
+enable(){
+    echo enable helloword
+}
+
+disable(){
+    echo disable helloword
+}
+命令应该很好理解，前面 START 和 STOP 是启动和关闭的优先级。
+
+下面是另一种自启动脚本的写法，应该是差不多，注释写的也挺清楚了
+
+#!/bin/sh /etc/rc.common
+
+START=99 # 执行的顺序，按照字符串顺序排序并不是数字排序
+STOP=15
+SERVICE=helloword
+PROG=/bin/helloword
+USE_PROCD=1 # 使用procd启动
+
+# start_service 函数必须要重新定义
+start_service()
+{
+    echo service helloword start
+    procd_open_instance  # 创建一个实例， 在 procd 看来一个应用程序可以多个实例
+    # ubus call service list 可以查看实例
+    procd_set_param command $PROG # mycode执行的命令是"/app/mycode"， 若后面有参数可以直接在后面加上
+    procd_set_param respawn # 定义respawn参数，告知procd当mycode程序退出后尝试进行重启
+    # procd_close_instance # 关闭实例
+}
+
+编写完文件后还应该记得改一下权限，让脚本能够执行
+
+cd /etc
+chmod -R 777 init.d/mystart #设置权限，否则无法激活开机启动，提示权限不足
+使用的时候按下面输入命令就可以，和普通服务类似
+
+/etc/init.d/mystart enable #激活开机启动
+/etc/init.d/mystart start #运行start函数启动程序
+在网页上配置自启动
+由于这项目是上一家公司的时候开发的了，都快一年了，源码都在之前公司的笔记本电脑里面，自己电脑没源码，就简单讲讲。
+
+先要打开 openwrt 的网页控制界面，里面找到自启动功能，在里面的文本行中加入下面命令
+
+helloword &
+实际上使用起来，好像在网页上配置的自启动还好一些，用配置文件写的但是还总出错，当时是对 4G 上网模块有影响，具体记不清了。当时分析出错的原因是，用配置文件写的命令在软件被停止后会尝试重新启动，当然如果你没遇到这些问题，两种方法都是可以的。
+
+自启动进阶
+网上的博客一般到这里就完了，可是我当时不想做差不多先生，我将自启动脚本写到我们的源码文件中去，在安装的时候就给自动弄好，简单省事，下面看看写法。
+
+先编写配置文件
+这里再源码目录总编写我们的自启动脚本文件，以上一篇的 helloword 为例
+
+mkdir ~/openwrt/package/hellworld/auto
+cd  ~/openwrt/package/hellworld/auto
+这里新起了一个目录来存放我们的配置文件，内容和上面一样，不说了。
+
+接下来的重点是编写外层的 Makefile 文件，在复制那一段将我们的配置文件复制到 /etc/init.d/ 目录中去
+
+define Package/helloword /install
+	echo "Here is Package/install"
+	$(INSTALL_DIR) $(1)/bin $(1)/etc/init.d/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/helloword $(1)/bin/
+	$(INSTALL_BIN) ./auto/mystart $(1)/etc/init.d/
+endef
+注意这里的 $(INSTALL_BIN)，复制的是二进制文件，权限问题我忘了，如果启动不了，也还是按上面的方法增加运行权限吧。
+
+
+
+
+
+USB模式开关
+3G/4G USB调制解调器或加密狗（以及一些智能手机）最初通常以虚拟CD-ROM驱动器的形式出现，提供在Windows/Mac上使用它们的驱动程序和实用程序，因此通常需要采取一些措施将其切换到适当的工作模式。
+为了暴露不同的接口，一些USB调制解调器可能还需要切换到另一种组合。
+usb modeswitch包包括usbmode工具，该工具具有基于json的配置，与标准的Linux usb_modeswitch二进制文件形成对比，以及一个Procd服务，该服务在usb设备插入后自动切换usb设备。
+/etc/usb-mode.json配置文件部分如下所示：
+nano /etc/usb-mode.json
+{
+	"messages" : [""],
+	"devices" : {
+                "0bda:a192": {
+                        "*": {
+                                "t_vendor": 8192,
+                                "t_product": [ 0135 ],
+                                "mode": "StandardEject",
+                                "msg": [  ]
+                        }
+                },
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+安装后进行TF卡扩容
+
+
+完整操作（请按顺序执行）
+1️⃣ 扩展分区表
+
+fdisk /dev/mmcblk0
+
+进入交互界面，依次执行：
+
+输入 d → 再输入 2（删除分区2）
+
+输入 n → 选择 p（主分区）→ 分区号输入 2
+
+起始扇区：输入 147456（必须与原分区一致）
+
+结束扇区：直接按回车（使用默认值，即磁盘末尾）
+
+如果提示 “Do you want to remove the signature?”，输入 N（保留 ext4 文件系统）
+
+输入 w 写入并退出
+
+2️⃣  重启系统
+
+reboot
+
+3️⃣ 确认分区已扩大
+fdisk -l /dev/mmcblk0
+现在 /dev/mmcblk0p2 的结束扇区应该变为 15523839（或接近），大小接近 7.2GB。
+
+4️⃣ 扩展文件系统
+首先检查 resize2fs 是否可用
+which resize2fs
+
+如果有路径（如 /sbin/resize2fs），直接执行：
+resize2fs /dev/mmcblk0p2
+
+如果出错可进行以下步骤
+
+
+请按顺序执行以下命令，每一步都要成功后再继续：
+重新挂载根分区为只读
+mount -o remount,ro /
+
+移除 resize_inode 特性
+tune2fs -O^resize_inode /dev/mmcblk0p2
+这一步会清除保留的块组描述符空间，为在线扩展腾出位置。
+
+强制检查并修复文件系统
+fsck.ext4 -f /dev/mmcblk0p2
+
+重启系统
+reboot
+
+重新尝试在线扩展
+resize2fs /dev/mmcblk0p2
+
+验证
+df -h /
+
+root@OpenWrt:~# df -h /
+Filesystem                Size      Used Available Use% Mounted on
+/dev/root                 7.2G     71.1M      7.2G   1% /
+我们确认了扩容成功，现在用户拥有7.2G的根分区空间。
+
+扩容成功！现在你的根分区已经扩展到 7.2G，可用空间充足。之前的依赖问题、软件包安装等都可以正常进行了。
