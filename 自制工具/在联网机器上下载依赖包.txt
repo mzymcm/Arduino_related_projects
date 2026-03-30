@@ -1,0 +1,21 @@
+在联网机器上下载依赖包
+您需要先获取 chromium-browser 及其所有依赖的包名列表。由于内网无法联网，您可以在能上网的机器上生成这个列表。
+mkdir offline_packages
+cd offline_packages
+
+例如，用 apt-rdepends 命令（需要安装 apt-rdepends 包）：
+apt-rdepends chromium-browser | grep -v "^ " | sort -u > deps.txt
+然后将这个 deps.txt 文件通过 U 盘等方式传到内网机器。
+
+在外网下载所有依赖包
+在外网（相同发行版和架构，即麒麟系统 aarch64）执行：
+xargs -a deps.txt apt-get download --print-uris | awk '{print $1}' | xargs wget
+这样会把所有 .deb 文件下载到外网机器的当前目录。
+
+
+直接使用 dpkg 安装
+如果不想配置本地源，可以直接用 dpkg -i 按正确顺序安装包。但由于依赖复杂，推荐使用 gdebi 或 dpkg -i 结合 apt-get -f install 自动解决顺序问题：
+
+cd /path/to/offline_packages
+sudo dpkg -i *.deb          # 会报依赖错误，但没关系
+sudo apt-get install -f     # 现在从本地目录中安装缺失依赖（如果本地目录在 APT 缓存中）
