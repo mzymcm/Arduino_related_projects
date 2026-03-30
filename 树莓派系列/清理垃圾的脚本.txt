@@ -1,0 +1,145 @@
+
+
+#!/bin/bash
+# ==============================================
+# 系统垃圾清理脚本 (适用于 Debian/DietPi)
+# 功能：清理 apt 缓存、日志、临时文件、用户缓存、旧内核等
+# 使用：sudo bash cleanup.sh
+# 修改：兼容无 GRUB 的系统，自动跳过引导更新
+# ==============================================
+
+set -e
+
+# 检查是否以 root 运行
+if [ "$EUID" -ne 0 ]; then
+    echo "请使用 root 权限运行（sudo bash $0）"
+    exit 1
+fi
+
+# 确认清理
+echo "=== 系统垃圾清理工具 ==="
+echo "警告：此操作将删除以下内容："
+echo "  - apt 下载的软件包缓存"
+echo "  - 旧内核（保留当前使用的）"
+echo "  - 系统日志（保留最近7天）"
+echo "  - /tmp 和 /var/tmp 下的临时文件"
+echo "  - 所有用户的缓存目录（.cache, .thumbnails）"
+echo "  - 用户回收站（Trash）"
+echo "  - 未使用的依赖包"
+echo ""
+read -p "是否继续？(y/n) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    exit 0
+fi
+
+echo ""
+echo "开始清理..."
+
+# 1. 清理 apt 缓存
+echo "[1/7] 清理 apt 缓存..."
+apt clean
+apt autoclean
+
+# 2. 移除未使用的依赖包
+echo "[2/7] 移除未使用的依赖包..."
+apt autoremove --purge -y
+
+# 3. 清理旧内核（保留当前和上一个，兼容无 GRUB 系统）
+echo "[3/7] 清理旧内核..."
+CURRENT_KERNEL=$(uname -r)
+# 获取所有已安装的内核包（按版本排序）
+KERNELS=$(dpkg --list | grep -E '^ii  linux-image-[0-9]' | awk '{ print $2 }' | sort -V)
+# 保留当前和最新两个（如果当前是最新，则保留两个最新）
+KERNELS_TO_KEEP=$(echo "$KERNELS" | tail -n 2)
+for kernel in $KERNELS; do
+    if ! echo "$KERNELS_TO_KEEP" | grep -q "$kernel"; then
+        echo "  移除旧内核: $kernel"
+        apt purge -y "$kernel"
+    fi
+done
+# 更新引导配置（如果存在相应工具）
+if command -v update-grub &> /dev/null; then
+    update-grub
+elif command -v grub-mkconfig &> /dev/null; then
+    grub-mkconfig -o /boot/grub/grub.cfg
+else
+    echo "  未检测到 GRUB，跳过引导配置更新（可能使用其他引导程序）"
+fi
+
+# 4. 清理系统日志
+echo "[4/7] 清理系统日志..."
+# 清理 journald 日志（保留最近7天）
+if command -v journalctl &> /dev/null; then
+    journalctl --vacuum-time=7d
+fi
+# 清空 /var/log 下的旧日志（保留最近7天）
+find /var/log -type f -name "*.log" -mtime +7 -delete 2>/dev/null || true
+find /var/log -type f -name "*.gz" -delete 2>/dev/null || true
+find /var/log -type f -name "*.old" -delete 2>/dev/null || true
+# 清空某些日志文件内容（可选）
+truncate -s 0 /var/log/{lastlog,dmesg,wtmp,btmp} 2>/dev/null || true
+
+# 5. 清理临时目录
+echo "[5/7] 清理临时目录..."
+rm -rf /tmp/* 2>/dev/null || true
+rm -rf /var/tmp/* 2>/dev/null || true
+
+# 6. 清理用户缓存和回收站
+echo "[6/7] 清理用户缓存和回收站..."
+# 获取所有用户的家目录（排除 root 和系统用户）
+for home in /home/*; do
+    if [ -d "$home" ]; then
+        user=$(basename "$home")
+        echo "  清理用户 $user 的缓存..."
+        # 清理 .cache 目录（保留最近7天的文件）
+        find "$home/.cache" -type f -atime +7 -delete 2>/dev/null || true
+        # 清理缩略图缓存
+        rm -rf "$home/.thumbnails" 2>/dev/null || true
+        # 清理回收站
+        rm -rf "$home/.local/share/Trash/*" 2>/dev/null || true
+    fi
+done
+# 清理 root 用户缓存
+if [ -d "/root/.cache" ]; then
+    find /root/.cache -type f -atime +7 -delete 2>/dev/null || true
+fi
+if [ -d "/root/.thumbnails" ]; then
+    rm -rf /root/.thumbnails 2>/dev/null || true
+fi
+if [ -d "/root/.local/share/Trash" ]; then
+    rm -rf /root/.local/share/Trash/* 2>/dev/null || true
+fi
+
+# 7. 清理 packagekit 缓存（如果存在）
+echo "[7/7] 清理 PackageKit 缓存..."
+if command -v pkcon &> /dev/null; then
+    pkcon refresh force -y 2>/dev/null || true
+fi
+
+echo ""
+echo "清理完成！"
+echo "建议重启一次以释放全部空间。"
+
+
+
+
+
+
+
+
+
+
+
+使用方法
+将上述内容保存为 cleanup.sh。
+
+赋予执行权限：
+
+
+chmod +x cleanup.sh
+以 root 身份运行：
+
+
+sudo ./cleanup.sh
+按提示确认后开始清理。
