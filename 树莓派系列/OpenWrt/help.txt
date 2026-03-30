@@ -7,10 +7,11 @@ Raspberry Pi A/A+/B/B+/CM/Zero/ZeroW
 base-files bcm27xx-gpu-fw bcm27xx-utils ca-bundle dnsmasq dropbear e2fsprogs firewall4 fstools kmod-fs-vfat kmod-nft-offload kmod-nls-cp437 kmod-nls-iso8859-1 kmod-sound-arm-bcm2835 kmod-sound-core kmod-usb-hid libc libgcc libustream-mbedtls logd mkf2fs mtd netifd nftables odhcp6c odhcpd-ipv6only opkg partx-utils ppp ppp-mod-pppoe procd-ujail uci uclient-fetch urandom-seed cypress-firmware-43430-sdio brcmfmac-nvram-43430-sdio kmod-brcmfmac wpad-basic-mbedtls iwinfo luci
 
 https://firmware-selector.openwrt.org/?version=24.10.0&target=bcm27xx%2Fbcm2708&id=rpi
+https://firmware-selector.openwrt.org/?version=25.12.2&target=bcm27xx%2Fbcm2708&id=rpi
 
 nano git-http usbutils openssh-server python3-pip make dc
 kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-firmware rtl8821ae-firmware
-block-mount cfdisk resize2fs fdisk parted
+block-mount cfdisk resize2fs fdisk parted tune2fs
 
 
 ##################### 树莓派3代固件#########################
@@ -23,7 +24,7 @@ https://firmware-selector.openwrt.org/?version=24.10.0&target=bcm27xx%2Fbcm2710&
 
 nano git-http usbutils openssh-server python3-pip make dc
 kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-firmware rtl8821ae-firmware
-block-mount cfdisk resize2fs fdisk parted
+block-mount cfdisk resize2fs fdisk parted tune2fs
 
 
 
