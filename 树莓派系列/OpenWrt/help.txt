@@ -988,3 +988,105 @@ Filesystem                Size      Used Available Use% Mounted on
 resize_inode 是 ext4 的一个特性，它会在文件系统中预先保留一些块用于未来的在线扩展。但当你需要大幅扩展（比如从 100M 到 7G）时，这些预保留块可能不足或布局冲突，导致在线扩展失败。
 
 移除 resize_inode 后，文件系统会放弃这些预留空间，fsck 会清理相关元数据，之后在线扩展就能正常进行。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#!/bin/bash
+
+# OpenWrt 网络配置脚本
+# 功能：启用 WiFi，添加两个 WiFi 连接，配置 WWAN 接口
+
+echo "正在配置 OpenWrt 网络设置..."
+
+# 备份原配置文件
+echo "备份原配置文件..."
+cp /etc/config/wireless /etc/config/wireless.backup.$(date +%Y%m%d%H%M%S)
+cp /etc/config/network /etc/config/network.backup.$(date +%Y%m%d%H%M%S)
+
+# 配置 /etc/config/wireless
+echo "配置无线网络..."
+
+# 启用 wifi 设备 (通常是 radio0)
+uci set wireless.radio0.disabled=0
+uci set wireless.radio0.channel='auto'
+uci set wireless.radio0.hwmode='11g'
+uci set wireless.radio0.htmode='HT20'
+uci commit wireless
+
+# 添加第一个 WiFi 连接 (CMCC-gyHQ)
+uci set wireless.wifi-iface[1]=wifi-iface
+uci set wireless.wifi-iface[1].device='radio0'
+uci set wireless.wifi-iface[1].network='wwan'
+uci set wireless.wifi-iface[1].mode='sta'
+uci set wireless.wifi-iface[1].ssid='CMCC-gyHQ'
+uci set wireless.wifi-iface[1].encryption='psk2'
+uci set wireless.wifi-iface[1].key='2fw5f8g7'
+uci set wireless.wifi-iface[1].disabled='0'
+
+# 添加第二个 WiFi 连接 (AlxaTax-dd)
+uci set wireless.wifi-iface[2]=wifi-iface
+uci set wireless.wifi-iface[2].device='radio0'
+uci set wireless.wifi-iface[2].network='wwan'
+uci set wireless.wifi-iface[2].mode='sta'
+uci set wireless.wifi-iface[2].ssid='AlxaTax-dd'
+uci set wireless.wifi-iface[2].encryption='psk2'
+uci set wireless.wifi-iface[2].key='3gjx7xrx'
+uci set wireless.wifi-iface[2].disabled='0'
+
+uci commit wireless
+
+# 配置 /etc/config/network
+echo "配置网络接口..."
+
+# 添加 wwan 接口
+uci set network.wwan=interface
+uci set network.wwan.proto='dhcp'
+
+# 如果需要指定 wwan 接口名称（通常是 wlan0 或 wlan1），取消下面两行的注释
+# uci set network.wwan.ifname='wlan0'
+
+uci commit network
+
+# 重启网络服务
+echo "重启网络服务..."
+wifi reload
+/etc/init.d/network restart
+
+echo "配置完成！"
+echo ""
+echo "已配置的 WiFi 连接："
+echo "1. SSID: CMCC-gyHQ (加密: WPA2-PSK)"
+echo "2. SSID: AlxaTax-dd (加密: WPA2-PSK)"
+echo ""
+echo "WWAN 接口已启用 (DHCP 模式)"
+echo ""
+echo "可以使用以下命令检查状态："
+echo "  - 查看无线状态: iwinfo"
+echo "  - 查看接口状态: ifconfig"
+echo "  - 查看网络配置: uci show wireless && uci show network"
+
