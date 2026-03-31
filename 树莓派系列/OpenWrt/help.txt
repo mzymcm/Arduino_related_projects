@@ -11,7 +11,7 @@ https://firmware-selector.openwrt.org/?version=25.12.2&target=bcm27xx%2Fbcm2708&
 
 nano git-http usbutils openssh-server python3-pip make dc
 kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-firmware rtl8821ae-firmware
-block-mount cfdisk resize2fs fdisk parted tune2fs rtl8188eu-firmware
+block-mount cfdisk resize2fs fdisk parted tune2fs rtl8188eu-firmware gcc coreutils-fmt
 
 
 ##################### 树莓派3代固件#########################
@@ -24,7 +24,8 @@ https://firmware-selector.openwrt.org/?version=24.10.0&target=bcm27xx%2Fbcm2710&
 
 nano git-http usbutils openssh-server python3-pip make dc
 kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-firmware rtl8821ae-firmware
-block-mount cfdisk resize2fs fdisk parted tune2fs rtl8188eu-firmware
+block-mount cfdisk resize2fs fdisk parted tune2fs rtl8188eu-firmware gcc coreutils-fmt
+
 
 
 

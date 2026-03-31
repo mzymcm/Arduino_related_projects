@@ -1,0 +1,70 @@
+ssd1306_bin -n 1 -I 128x64 -m "Hello"
+
+如何编译
+需要品牌和GCC。如果你使用交叉编译，请自定义 $（CC）。 输入“make”以构建二进制“ssd1306_bin”。 输入“make clean”来清理项目。
+
+如何使用
+开机时一定要先 init 一次 OLE 模块。
+如果不使用默认值 /dev/i2c-0，则每次都设置设备节点地址
+初始化的OLED模块始终将XY光标重置为（0,0）
+所有参数都可以一起集合
+如果需要写新文本，则会清出屏幕，否则会出现措辞重叠
+分辨率值存储在 /tmp/.ssd1306_oled_type 中，格式如“128x64”或“128x32”或“64x48”
+一定要先旋转显示，再填充文字。否则文本导致镜像
+打印文字前请确保XY光标设置正确
+参数
+-I      init oled (128x32 or 128x64 or 64x48)
+-c      clear (line number or all)
+-d      0/display off 1/display on
+-f      0/small font 5x7 1/normal font 8x8 (default small font)
+-h      help message
+-i      0/normal oled 1/invert oled
+-l      put your line to display
+-m      put your strings to oled
+-n      I2C device node address (0,1,2..., default 0)
+-r      0/normal 180/rotate
+-x      x position
+-y      y position
+示例
+启动一次OLED。
+分辨率 128x64
+$ ./ssd1306_bin -I 128x64
+分辨率 128x32
+$ ./ssd1306_bin -I 128x32
+分辨率 64x48
+$ ./ssd1306_bin -I 64x48
+清晰显示
+清空第一排
+./ssd1306_bin -c0
+第二排清空
+$ ./ssd1306_bin -c1
+第四线清晰
+$ ./ssd1306_bin -c3
+全屏清除
+$ ./ssd1306_bin -c
+显示开关
+关闭显示
+$ ./ssd1306_bin -d 0
+展示
+$ ./ssd1306_bin -d 1
+倒置显示
+普通OLED（0关，1开）
+$ ./ssd1306_bin -i 0
+反转OLED系统（0开，1关）
+$ ./ssd1306_bin -i 1
+印刷词
+写下“你好的世界”
+$ ./ssd1306_bin -l "Hello World"
+请写下“alpha\nbravo\ncharlie\ndelta”（请在下一行放置\n）
+$ ./ssd1306_bin -m "alpha\nbravo\ncharlie\ndelta"
+I2C 设备地址（默认为 /dev/i2c-0）
+使用 /dev/i2c-1
+$ ./ssd1306_bin -n 1
+旋转显示
+正向方向
+$ ./ssd1306_bin -r 0
+180转弯方向
+$ ./ssd1306_bin -r 180
+设置光标位置
+集合 XY 光标 8,1（x 为列，8 列跳过，y 为行，第二行）
+$ ./ssd1306_bin -x 8 -y 1
