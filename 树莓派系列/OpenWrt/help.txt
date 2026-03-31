@@ -14,6 +14,10 @@ kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-fi
 block-mount cfdisk resize2fs fdisk parted tune2fs rtl8188eu-firmware gcc coreutils-fmt
 
 
+nano git-http  make kmod-rtl8xxxu kmod-rtl8192cu rtl8192cu-firmware rtl8192eu-firmware  rtl8188fu-firmware rtl8821ae-firmware
+block-mount cfdisk resize2fs fdisk parted tune2fs rtl8188eu-firmware gcc coreutils-fmt
+
+
 ##################### 树莓派3代固件#########################
 Raspberry Pi 3 Model B BCM2837 ARM Cortex-A53 1.2GHz 64位四核
 
