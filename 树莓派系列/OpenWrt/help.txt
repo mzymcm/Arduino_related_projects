@@ -1014,5 +1014,141 @@ resize_inode 是 ext4 的一个特性，它会在文件系统中预先保留一�
 
 
 
+以下脚本将自动完成所有配置：清除旧的无线设置、创建双热点配置文件、配置无线接口和网络接口，并确保系统重启后自动生效。它使用单文件 /etc/wpa_supplicant.conf 避免目录缺失问题，并显式指定 ifname='wlan0' 确保无线接口被创建。
 
+#!/bin/sh
+
+# 树莓派1A OpenWrt 双WiFi热点自动配置脚本
+# 功能：清除旧配置，配置两个热点自动连接，优先使用 CMCC-gyHQ
+# 使用方法：chmod +x configure_wifi.sh && ./configure_wifi.sh
+
+set -e  # 遇到错误立即退出
+
+# 热点信息
+SSID1="CMCC-gyHQ"
+PSK1="2fw5f8g7"
+SSID2="AlxaTax-dd"
+PSK2="3gjx7xrx"
+
+WAN_IF="wwan"               # 网络接口名
+WLAN_IF="wlan0"             # 无线接口名（驱动将创建）
+WPA_CONF="/etc/wpa_supplicant.conf"  # 单文件配置
+
+echo "======================================"
+echo "开始配置双WiFi热点自动连接"
+echo "======================================"
+
+# 1. 确保必要工具已安装
+if ! command -v uci >/dev/null 2>&1; then
+    echo "错误：uci 命令不存在，请确保系统为 OpenWrt。"
+    exit 1
+fi
+
+if ! command -v iw >/dev/null 2>&1; then
+    echo "安装 iw 工具..."
+    opkg update && opkg install iw
+fi
+
+# 2. 清除旧无线配置（避免冲突）
+echo "清除旧的无线配置..."
+uci delete wireless.@wifi-iface[-1] 2>/dev/null
+uci delete wireless.radio0 2>/dev/null
+uci commit wireless
+
+# 3. 创建 wpa_supplicant 配置文件（单文件）
+echo "创建 wpa_supplicant 配置文件：$WPA_CONF"
+cat > "$WPA_CONF" <<EOF
+ctrl_interface=/var/run/wpa_supplicant
+update_config=1
+country=CN
+
+network={
+    ssid="$SSID1"
+    psk="$PSK1"
+    key_mgmt=WPA-PSK
+    priority=10
+}
+
+network={
+    ssid="$SSID2"
+    psk="$PSK2"
+    key_mgmt=WPA-PSK
+    priority=5
+}
+EOF
+
+# 4. 配置无线设备（radio0）
+echo "配置无线设备 radio0..."
+uci set wireless.radio0=wifi-device
+uci set wireless.radio0.type='mac80211'
+uci set wireless.radio0.channel='auto'
+uci set wireless.radio0.hwmode='11g'          # 可根据 USB 网卡调整（11g/11n）
+uci set wireless.radio0.country='CN'
+uci set wireless.radio0.disabled='0'
+
+# 5. 配置客户端模式（指定 ifname 为 wlan0）
+echo "配置客户端接口..."
+uci set wireless.client=wifi-iface
+uci set wireless.client.device='radio0'
+uci set wireless.client.mode='sta'
+uci set wireless.client.network="$WAN_IF"
+uci set wireless.client.config="$WPA_CONF"
+uci set wireless.client.ifname="$WLAN_IF"
+
+uci commit wireless
+
+# 6. 配置网络接口（DHCP）
+echo "配置网络接口 $WAN_IF..."
+uci delete network.$WAN_IF 2>/dev/null
+uci set network.$WAN_IF=interface
+uci set network.$WAN_IF.proto='dhcp'
+uci commit network
+
+# 7. 可选：屏蔽可能冲突的驱动（rtl8192cu）
+if lsmod | grep -q rtl8192cu; then
+    echo "检测到 rtl8192cu 驱动，将其加入黑名单以避免冲突..."
+    echo "blacklist rtl8192cu" >> /etc/modprobe.d/blacklist-rtl8192cu.conf 2>/dev/null || true
+    echo "blacklist rtlwifi" >> /etc/modprobe.d/blacklist-rtl8192cu.conf 2>/dev/null || true
+    rmmod rtl8192cu rtlwifi 2>/dev/null || true
+    modprobe rtl8xxxu 2>/dev/null || true
+fi
+
+# 8. 重启网络服务使配置生效
+echo "重启网络服务..."
+/etc/init.d/network restart
+
+# 9. 等待接口创建并检查状态
+echo "等待无线接口 $WLAN_IF 和网络接口 $WAN_IF 就绪..."
+sleep 8
+
+if ifconfig "$WLAN_IF" >/dev/null 2>&1; then
+    echo "无线接口 $WLAN_IF 已创建成功。"
+else
+    echo "警告：无线接口 $WLAN_IF 未自动创建，尝试手动创建..."
+    iw phy phy0 interface add "$WLAN_IF" type managed 2>/dev/null && ip link set "$WLAN_IF" up
+fi
+
+if ifconfig "$WAN_IF" >/dev/null 2>&1; then
+    echo "网络接口 $WAN_IF 已就绪。"
+else
+    echo "警告：网络接口 $WAN_IF 未就绪，请稍后手动检查。"
+fi
+
+echo "======================================"
+echo "配置完成。"
+echo "请运行以下命令检查连接状态："
+echo "  ifconfig $WAN_IF"
+echo "  iw dev $WLAN_IF link"
+echo "  ping 8.8.8.8"
+echo "======================================"
+使用说明
+将脚本保存到树莓派（例如 /root/configure_wifi.sh）。
+
+添加执行权限：
+
+chmod +x /root/configure_wifi.sh
+运行脚本：
+
+/root/configure_wifi.sh
+等待脚本执行完成（约 10-15 秒），然后按照提示检查网络连接。
 
