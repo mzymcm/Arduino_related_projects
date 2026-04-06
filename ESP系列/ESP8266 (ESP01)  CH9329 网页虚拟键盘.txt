@@ -1,0 +1,444 @@
+/*
+ * ESP8266 (ESP01) + CH9329 协议模式 - 网页虚拟键盘（单键发送）
+ * 硬件：CH9329 连接至 UART0 (GPIO1=TX, GPIO3=RX)
+ * 模式：协议传输模式（默认），波特率9600
+ * 功能：ESP8266 开启 WiFi 热点，浏览器访问 192.168.4.1，点击按键即发送对应键盘敲击
+ * CFG0/CFG1/MODE0/MODE1 全部悬空（默认模式0，协议传输）
+ * 
+ * 注意：烧录时需断开 CH9329 与 GPIO1/GPIO3 的连接，烧录完成后再接上。
+ */
+
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+// ========== 使用硬件串口 UART0 (GPIO1=TX, GPIO3=RX) 与 CH9329 通信 ==========
+#define CH9329_SERIAL Serial
+
+// ========== WiFi 热点配置 ==========
+const char* ap_ssid = "ESP_VirtualKeyboard";   // 热点名称
+const char* ap_password = "12345678";          // 热点密码（至少8位）
+
+ESP8266WebServer server(80);
+
+// ========== HID 键码定义 ==========
+#define KEY_A       0x04
+#define KEY_B       0x05
+#define KEY_C       0x06
+#define KEY_D       0x07
+#define KEY_E       0x08
+#define KEY_F       0x09
+#define KEY_G       0x0A
+#define KEY_H       0x0B
+#define KEY_I       0x0C
+#define KEY_J       0x0D
+#define KEY_K       0x0E
+#define KEY_L       0x0F
+#define KEY_M       0x10
+#define KEY_N       0x11
+#define KEY_O       0x12
+#define KEY_P       0x13
+#define KEY_Q       0x14
+#define KEY_R       0x15
+#define KEY_S       0x16
+#define KEY_T       0x17
+#define KEY_U       0x18
+#define KEY_V       0x19
+#define KEY_W       0x1A
+#define KEY_X       0x1B
+#define KEY_Y       0x1C
+#define KEY_Z       0x1D
+
+#define KEY_1       0x1E
+#define KEY_2       0x1F
+#define KEY_3       0x20
+#define KEY_4       0x21
+#define KEY_5       0x22
+#define KEY_6       0x23
+#define KEY_7       0x24
+#define KEY_8       0x25
+#define KEY_9       0x26
+#define KEY_0       0x27
+
+#define KEY_ENTER   0x28
+#define KEY_ESC     0x29
+#define KEY_BACKSPACE 0x2A
+#define KEY_TAB     0x2B
+#define KEY_SPACE   0x2C
+#define KEY_MINUS   0x2D
+#define KEY_EQUAL   0x2E
+#define KEY_LEFT_BRACKET  0x2F
+#define KEY_RIGHT_BRACKET 0x30
+#define KEY_BACKSLASH     0x31
+#define KEY_SEMICOLON     0x33
+#define KEY_QUOTE         0x34
+#define KEY_GRAVE         0x35
+#define KEY_COMMA   0x36
+#define KEY_PERIOD  0x37
+#define KEY_SLASH   0x38
+
+#define MOD_LEFT_SHIFT  0x02
+
+// ========== 发送单个按键（按下+释放） ==========
+void sendSingleKey(uint8_t modifier, uint8_t keycode) {
+  uint8_t packet[14];
+  packet[0] = 0x57;
+  packet[1] = 0xAB;
+  packet[2] = 0x00;
+  packet[3] = 0x02;
+  packet[4] = 0x08;
+  packet[5] = modifier;
+  packet[6] = 0x00;
+  packet[7] = keycode;
+  packet[8] = 0x00;
+  packet[9] = 0x00;
+  packet[10] = 0x00;
+  packet[11] = 0x00;
+  packet[12] = 0x00;
+  uint8_t sum = 0;
+  for (int i = 0; i < 13; i++) sum += packet[i];
+  packet[13] = sum;
+  
+  CH9329_SERIAL.write(packet, 14);
+  delay(20);
+  
+  // 释放按键包（全0）
+  uint8_t release[14] = {0x57, 0xAB, 0x00, 0x02, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0C};
+  CH9329_SERIAL.write(release, 14);
+  delay(10);
+}
+
+// 发送字符（支持大小写、数字、常用符号）
+void sendChar(char ch) {
+  uint8_t modifier = 0x00;
+  uint8_t keycode = 0x00;
+  
+  if (ch >= 'a' && ch <= 'z') {
+    keycode = ch - 'a' + KEY_A;
+  } else if (ch >= 'A' && ch <= 'Z') {
+    modifier = MOD_LEFT_SHIFT;
+    keycode = ch - 'A' + KEY_A;
+  } else if (ch >= '0' && ch <= '9') {
+    if (ch == '0') keycode = KEY_0;
+    else keycode = KEY_1 + (ch - '1');
+  } else {
+    switch(ch) {
+      case ' ': keycode = KEY_SPACE; break;
+      case '\n': keycode = KEY_ENTER; break;
+      case '\r': keycode = KEY_ENTER; break;
+      case '\t': keycode = KEY_TAB; break;
+      case '-': keycode = KEY_MINUS; break;
+      case '=': keycode = KEY_EQUAL; break;
+      case '[': keycode = KEY_LEFT_BRACKET; break;
+      case ']': keycode = KEY_RIGHT_BRACKET; break;
+      case '\\': keycode = KEY_BACKSLASH; break;
+      case ';': keycode = KEY_SEMICOLON; break;
+      case '\'': keycode = KEY_QUOTE; break;
+      case '`': keycode = KEY_GRAVE; break;
+      case ',': keycode = KEY_COMMA; break;
+      case '.': keycode = KEY_PERIOD; break;
+      case '/': keycode = KEY_SLASH; break;
+      case '!': modifier = MOD_LEFT_SHIFT; keycode = KEY_1; break;
+      case '@': modifier = MOD_LEFT_SHIFT; keycode = KEY_2; break;
+      case '#': modifier = MOD_LEFT_SHIFT; keycode = KEY_3; break;
+      case '$': modifier = MOD_LEFT_SHIFT; keycode = KEY_4; break;
+      case '%': modifier = MOD_LEFT_SHIFT; keycode = KEY_5; break;
+      case '^': modifier = MOD_LEFT_SHIFT; keycode = KEY_6; break;
+      case '&': modifier = MOD_LEFT_SHIFT; keycode = KEY_7; break;
+      case '*': modifier = MOD_LEFT_SHIFT; keycode = KEY_8; break;
+      case '(': modifier = MOD_LEFT_SHIFT; keycode = KEY_9; break;
+      case ')': modifier = MOD_LEFT_SHIFT; keycode = KEY_0; break;
+      case '_': modifier = MOD_LEFT_SHIFT; keycode = KEY_MINUS; break;
+      case '+': modifier = MOD_LEFT_SHIFT; keycode = KEY_EQUAL; break;
+      case '{': modifier = MOD_LEFT_SHIFT; keycode = KEY_LEFT_BRACKET; break;
+      case '}': modifier = MOD_LEFT_SHIFT; keycode = KEY_RIGHT_BRACKET; break;
+      case '|': modifier = MOD_LEFT_SHIFT; keycode = KEY_BACKSLASH; break;
+      case ':': modifier = MOD_LEFT_SHIFT; keycode = KEY_SEMICOLON; break;
+      case '"': modifier = MOD_LEFT_SHIFT; keycode = KEY_QUOTE; break;
+      case '~': modifier = MOD_LEFT_SHIFT; keycode = KEY_GRAVE; break;
+      case '<': modifier = MOD_LEFT_SHIFT; keycode = KEY_COMMA; break;
+      case '>': modifier = MOD_LEFT_SHIFT; keycode = KEY_PERIOD; break;
+      case '?': modifier = MOD_LEFT_SHIFT; keycode = KEY_SLASH; break;
+      default: return;
+    }
+  }
+  if (keycode != 0) {
+    sendSingleKey(modifier, keycode);
+  }
+}
+
+// 发送特殊功能键
+void sendSpecialKey(uint8_t keycode) {
+  sendSingleKey(0x00, keycode);
+}
+
+// ========== 网页 HTML（内容同上，略作精简） ==========
+const char index_html[] PROGMEM = 
+"<!DOCTYPE html>\n"
+"<html lang=\"zh\">\n"
+"<head>\n"
+"    <meta charset=\"UTF-8\">\n"
+"    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=yes\">\n"
+"    <title>ESP8266 虚拟键盘</title>\n"
+"    <style>\n"
+"        * { box-sizing: border-box; user-select: none; }\n"
+"        body {\n"
+"            background: linear-gradient(135deg, #1e3c72, #2a5298);\n"
+"            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n"
+"            display: flex;\n"
+"            justify-content: center;\n"
+"            align-items: center;\n"
+"            min-height: 100vh;\n"
+"            margin: 0;\n"
+"            padding: 20px;\n"
+"        }\n"
+"        .keyboard {\n"
+"            background: rgba(0,0,0,0.5);\n"
+"            border-radius: 20px;\n"
+"            padding: 20px;\n"
+"            box-shadow: 0 10px 30px rgba(0,0,0,0.3);\n"
+"            max-width: 1000px;\n"
+"            width: 100%;\n"
+"        }\n"
+"        .row {\n"
+"            display: flex;\n"
+"            justify-content: center;\n"
+"            margin-bottom: 10px;\n"
+"            gap: 6px;\n"
+"            flex-wrap: wrap;\n"
+"        }\n"
+"        .key {\n"
+"            background: #f0f0f0;\n"
+"            border: none;\n"
+"            border-radius: 8px;\n"
+"            padding: 12px 16px;\n"
+"            font-size: 1.2rem;\n"
+"            font-weight: bold;\n"
+"            cursor: pointer;\n"
+"            box-shadow: 0 2px 5px rgba(0,0,0,0.2);\n"
+"            transition: all 0.05s linear;\n"
+"            min-width: 55px;\n"
+"            text-align: center;\n"
+"        }\n"
+"        .key:active {\n"
+"            transform: scale(0.96);\n"
+"            background: #d0d0d0;\n"
+"        }\n"
+"        .key-special {\n"
+"            background: #ffc107;\n"
+"            color: #333;\n"
+"        }\n"
+"        .key-space {\n"
+"            min-width: 200px;\n"
+"        }\n"
+"        .key-backspace {\n"
+"            background: #f44336;\n"
+"            color: white;\n"
+"        }\n"
+"        .key-enter {\n"
+"            background: #4caf50;\n"
+"            color: white;\n"
+"        }\n"
+"        .key-tab {\n"
+"            background: #9c27b0;\n"
+"            color: white;\n"
+"        }\n"
+"        .key-shift-active {\n"
+"            background: #ff9800;\n"
+"            color: white;\n"
+"            box-shadow: 0 0 8px #ff9800;\n"
+"        }\n"
+"        .status {\n"
+"            text-align: center;\n"
+"            margin-top: 15px;\n"
+"            color: #ddd;\n"
+"            font-size: 0.9rem;\n"
+"        }\n"
+"        @media (max-width: 700px) {\n"
+"            .key { padding: 8px 10px; min-width: 40px; font-size: 1rem; }\n"
+"            .key-space { min-width: 120px; }\n"
+"        }\n"
+"    </style>\n"
+"</head>\n"
+"<body>\n"
+"<div class=\"keyboard\">\n"
+"    <div class=\"row\">\n"
+"        <button class=\"key\" data-key=\"`\">`</button>\n"
+"        <button class=\"key\" data-key=\"1\">1</button> <button class=\"key\" data-key=\"2\">2</button>\n"
+"        <button class=\"key\" data-key=\"3\">3</button> <button class=\"key\" data-key=\"4\">4</button>\n"
+"        <button class=\"key\" data-key=\"5\">5</button> <button class=\"key\" data-key=\"6\">6</button>\n"
+"        <button class=\"key\" data-key=\"7\">7</button> <button class=\"key\" data-key=\"8\">8</button>\n"
+"        <button class=\"key\" data-key=\"9\">9</button> <button class=\"key\" data-key=\"0\">0</button>\n"
+"        <button class=\"key\" data-key=\"-\">-</button> <button class=\"key\" data-key=\"=\">=</button>\n"
+"        <button class=\"key key-backspace\" data-special=\"backspace\">⌫</button>\n"
+"    </div>\n"
+"    <div class=\"row\">\n"
+"        <button class=\"key\" data-key=\"q\">Q</button> <button class=\"key\" data-key=\"w\">W</button>\n"
+"        <button class=\"key\" data-key=\"e\">E</button> <button class=\"key\" data-key=\"r\">R</button>\n"
+"        <button class=\"key\" data-key=\"t\">T</button> <button class=\"key\" data-key=\"y\">Y</button>\n"
+"        <button class=\"key\" data-key=\"u\">U</button> <button class=\"key\" data-key=\"i\">I</button>\n"
+"        <button class=\"key\" data-key=\"o\">O</button> <button class=\"key\" data-key=\"p\">P</button>\n"
+"        <button class=\"key\" data-key=\"[\">[</button> <button class=\"key\" data-key=\"]\">]</button>\n"
+"        <button class=\"key\" data-special=\"backslash\">\\</button>\n"
+"    </div>\n"
+"    <div class=\"row\">\n"
+"        <button class=\"key key-tab\" data-special=\"tab\">Tab</button>\n"
+"        <button class=\"key\" data-key=\"a\">A</button> <button class=\"key\" data-key=\"s\">S</button>\n"
+"        <button class=\"key\" data-key=\"d\">D</button> <button class=\"key\" data-key=\"f\">F</button>\n"
+"        <button class=\"key\" data-key=\"g\">G</button> <button class=\"key\" data-key=\"h\">H</button>\n"
+"        <button class=\"key\" data-key=\"j\">J</button> <button class=\"key\" data-key=\"k\">K</button>\n"
+"        <button class=\"key\" data-key=\"l\">L</button>\n"
+"        <button class=\"key\" data-key=\";\">;</button> <button class=\"key\" data-key=\"'\">'</button>\n"
+"        <button class=\"key key-enter\" data-special=\"enter\">↵</button>\n"
+"    </div>\n"
+"    <div class=\"row\">\n"
+"        <button class=\"key key-special\" id=\"shiftBtn\">Shift</button>\n"
+"        <button class=\"key\" data-key=\"z\">Z</button> <button class=\"key\" data-key=\"x\">X</button>\n"
+"        <button class=\"key\" data-key=\"c\">C</button> <button class=\"key\" data-key=\"v\">V</button>\n"
+"        <button class=\"key\" data-key=\"b\">B</button> <button class=\"key\" data-key=\"n\">N</button>\n"
+"        <button class=\"key\" data-key=\"m\">M</button>\n"
+"        <button class=\"key\" data-key=\",\">,</button> <button class=\"key\" data-key=\".\">.</button>\n"
+"        <button class=\"key\" data-key=\"/\">/</button>\n"
+"        <button class=\"key key-special\" id=\"ctrlBtn\">Ctrl</button>\n"
+"    </div>\n"
+"    <div class=\"row\">\n"
+"        <button class=\"key key-space\" data-key=\" \">空格</button>\n"
+"    </div>\n"
+"    <div class=\"status\">点击 Shift 按钮后，下一个字母自动大写</div>\n"
+"</div>\n"
+"<script>\n"
+"    let shiftActive = false;\n"
+"    const shiftBtn = document.getElementById('shiftBtn');\n"
+"    const ctrlBtn = document.getElementById('ctrlBtn');\n"
+"\n"
+"    async function sendKey(value, isSpecial=false) {\n"
+"        let url = isSpecial ? `/special?key=${value}` : `/key?char=${encodeURIComponent(value)}`;\n"
+"        try {\n"
+"            let resp = await fetch(url);\n"
+"            if (!resp.ok) console.error(await resp.text());\n"
+"        } catch(e) {\n"
+"            console.error('发送失败', e);\n"
+"        }\n"
+"    }\n"
+"\n"
+"    function onLetterClick(letter) {\n"
+"        let charToSend = letter;\n"
+"        if (shiftActive) {\n"
+"            charToSend = letter.toUpperCase();\n"
+"            shiftActive = false;\n"
+"            shiftBtn.classList.remove('key-shift-active');\n"
+"        }\n"
+"        sendKey(charToSend);\n"
+"    }\n"
+"\n"
+"    document.querySelectorAll('.key[data-key]').forEach(btn => {\n"
+"        let originalKey = btn.dataset.key;\n"
+"        if (originalKey && originalKey.length === 1 && /[a-z]/i.test(originalKey)) {\n"
+"            btn.addEventListener('click', (e) => {\n"
+"                e.stopPropagation();\n"
+"                onLetterClick(originalKey);\n"
+"            });\n"
+"        } else if (originalKey) {\n"
+"            btn.addEventListener('click', (e) => {\n"
+"                e.stopPropagation();\n"
+"                sendKey(originalKey);\n"
+"            });\n"
+"        }\n"
+"    });\n"
+"\n"
+"    document.querySelectorAll('.key[data-special]').forEach(btn => {\n"
+"        btn.addEventListener('click', (e) => {\n"
+"            e.stopPropagation();\n"
+"            let special = btn.dataset.special;\n"
+"            sendKey(special, true);\n"
+"        });\n"
+"    });\n"
+"\n"
+"    shiftBtn.addEventListener('click', (e) => {\n"
+"        e.stopPropagation();\n"
+"        shiftActive = !shiftActive;\n"
+"        if (shiftActive) {\n"
+"            shiftBtn.classList.add('key-shift-active');\n"
+"        } else {\n"
+"            shiftBtn.classList.remove('key-shift-active');\n"
+"        }\n"
+"    });\n"
+"\n"
+"    ctrlBtn.addEventListener('click', (e) => {\n"
+"        e.stopPropagation();\n"
+"        sendKey('ctrl', true);\n"
+"    });\n"
+"</script>\n"
+"</body>\n"
+"</html>\n";
+
+// ========== Web 路由 ==========
+void handleRoot() {
+  server.send(200, "text/html", index_html);
+}
+
+void handleKey() {
+  if (server.hasArg("char")) {
+    String ch = server.arg("char");
+    if (ch.length() == 1) {
+      sendChar(ch[0]);
+      server.send(200, "text/plain", "OK");
+    } else {
+      server.send(400, "text/plain", "Invalid char");
+    }
+  } else {
+    server.send(400, "text/plain", "Missing char");
+  }
+}
+
+void handleSpecial() {
+  if (server.hasArg("key")) {
+    String key = server.arg("key");
+    if (key == "enter") {
+      sendSpecialKey(KEY_ENTER);
+    } else if (key == "backspace") {
+      sendSpecialKey(KEY_BACKSPACE);
+    } else if (key == "tab") {
+      sendSpecialKey(KEY_TAB);
+    } else if (key == "backslash") {
+      sendSpecialKey(KEY_BACKSLASH);
+    } else if (key == "shift") {
+      sendSingleKey(MOD_LEFT_SHIFT, 0x00);
+    } else if (key == "ctrl") {
+      sendSingleKey(0x01, 0x00);      // 左 Ctrl
+    } else {
+      server.send(400, "text/plain", "Unknown special");
+      return;
+    }
+    server.send(200, "text/plain", "OK");
+  } else {
+    server.send(400, "text/plain", "Missing key");
+  }
+}
+
+void handleNotFound() {
+  server.send(404, "text/plain", "404");
+}
+
+// ========== Setup ==========
+void setup() {
+  // 初始化硬件串口与 CH9329 通信，波特率 9600
+  CH9329_SERIAL.begin(9600);
+  delay(100);
+
+  // 配置 WiFi 为 AP 模式（无调试输出，避免干扰串口）
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(ap_ssid, ap_password);
+  // IP 地址固定为 192.168.4.1，无需打印
+
+  // 启动 Web 服务器
+  server.on("/", handleRoot);
+  server.on("/key", handleKey);
+  server.on("/special", handleSpecial);
+  server.onNotFound(handleNotFound);
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+  delay(5);
+}
