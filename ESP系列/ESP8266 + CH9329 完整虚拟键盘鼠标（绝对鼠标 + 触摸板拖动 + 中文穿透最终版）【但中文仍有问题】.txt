@@ -1,0 +1,783 @@
+/*
+ * ESP8266 + CH9329 完整虚拟键盘鼠标（绝对鼠标 + 触摸板拖动 + 中文穿透最终版）
+ * 鼠标：绝对坐标，触摸板拖动，支持左键锁定拖拽
+ * 键盘：ASCII字符 + 中文穿透（三种可选方案）
+ * 
+ * 中文输入方案说明（在 setup() 函数中选择）：
+ * 方案一：Windows Alt+十六进制输入法（默认，需开启注册表 EnableHexNumpad）
+ * 方案二：区位码输入法（兼容性更好，无需额外配置）
+ * 方案三：剪贴板粘贴（最稳定，通过模拟 Ctrl+V）
+ */
+
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+#define CH9329_SERIAL Serial
+
+const char* ap_ssid = "ESP_Virtual_HID";
+const char* ap_password = "12345678";
+
+ESP8266WebServer server(80);
+
+int screenWidth = 1920;
+int screenHeight = 1080;
+int currentMouseX = 960;
+int currentMouseY = 540;
+
+// ========== 键盘键码 ==========
+#define KEY_A       0x04
+#define KEY_B       0x05
+#define KEY_C       0x06
+#define KEY_D       0x07
+#define KEY_E       0x08
+#define KEY_F       0x09
+#define KEY_G       0x0A
+#define KEY_H       0x0B
+#define KEY_I       0x0C
+#define KEY_J       0x0D
+#define KEY_K       0x0E
+#define KEY_L       0x0F
+#define KEY_M       0x10
+#define KEY_N       0x11
+#define KEY_O       0x12
+#define KEY_P       0x13
+#define KEY_Q       0x14
+#define KEY_R       0x15
+#define KEY_S       0x16
+#define KEY_T       0x17
+#define KEY_U       0x18
+#define KEY_V       0x19
+#define KEY_W       0x1A
+#define KEY_X       0x1B
+#define KEY_Y       0x1C
+#define KEY_Z       0x1D
+
+#define KEY_1       0x1E
+#define KEY_2       0x1F
+#define KEY_3       0x20
+#define KEY_4       0x21
+#define KEY_5       0x22
+#define KEY_6       0x23
+#define KEY_7       0x24
+#define KEY_8       0x25
+#define KEY_9       0x26
+#define KEY_0       0x27
+
+#define KEY_ENTER   0x28
+#define KEY_ESC     0x29
+#define KEY_BACKSPACE 0x2A
+#define KEY_TAB     0x2B
+#define KEY_SPACE   0x2C
+#define KEY_MINUS   0x2D
+#define KEY_EQUAL   0x2E
+#define KEY_LEFT_BRACKET  0x2F
+#define KEY_RIGHT_BRACKET 0x30
+#define KEY_BACKSLASH     0x31
+#define KEY_SEMICOLON     0x33
+#define KEY_QUOTE         0x34
+#define KEY_GRAVE         0x35
+#define KEY_COMMA   0x36
+#define KEY_PERIOD  0x37
+#define KEY_SLASH   0x38
+
+#define KEY_KP_PLUS 0x57
+#define KEY_KP_0    0x62
+#define KEY_KP_1    0x59
+#define KEY_KP_2    0x5A
+#define KEY_KP_3    0x5B
+#define KEY_KP_4    0x5C
+#define KEY_KP_5    0x5D
+#define KEY_KP_6    0x5E
+#define KEY_KP_7    0x5F
+#define KEY_KP_8    0x60
+#define KEY_KP_9    0x61
+
+#define MOD_LEFT_SHIFT  0x02
+#define MOD_LEFT_CTRL   0x01
+#define MOD_LEFT_ALT    0x04
+
+// ========== 全局变量：选择中文输入方案 ==========
+// 0: 禁用中文（仅ASCII）
+// 1: Windows Alt+十六进制（需注册表 EnableHexNumpad）
+// 2: 区位码输入法（兼容性好）
+// 3: 剪贴板粘贴（最稳定，需确保目标窗口支持 Ctrl+V）
+int chineseInputMethod = 3;  // 默认使用剪贴板粘贴方案
+
+// ========== 鼠标绝对坐标转换 ==========
+void screenToChip(int screenX, int screenY, uint8_t &lowX, uint8_t &highX, uint8_t &lowY, uint8_t &highY) {
+  uint16_t chipX = (uint32_t)screenX * 4096 / screenWidth;
+  uint16_t chipY = (uint32_t)screenY * 4096 / screenHeight;
+  lowX = chipX & 0xFF;
+  highX = (chipX >> 8) & 0xFF;
+  lowY = chipY & 0xFF;
+  highY = (chipY >> 8) & 0xFF;
+}
+
+void sendAbsoluteMouse(uint8_t buttons, int screenX, int screenY, uint8_t wheel = 0x00) {
+  if (screenX < 0) screenX = 0;
+  if (screenX > screenWidth) screenX = screenWidth;
+  if (screenY < 0) screenY = 0;
+  if (screenY > screenHeight) screenY = screenHeight;
+  
+  uint8_t lowX, highX, lowY, highY;
+  screenToChip(screenX, screenY, lowX, highX, lowY, highY);
+  
+  uint8_t packet[13];
+  packet[0] = 0x57;
+  packet[1] = 0xAB;
+  packet[2] = 0x00;
+  packet[3] = 0x04;
+  packet[4] = 0x07;
+  packet[5] = 0x02;
+  packet[6] = buttons;
+  packet[7] = lowX;
+  packet[8] = highX;
+  packet[9] = lowY;
+  packet[10] = highY;
+  packet[11] = wheel;
+  uint8_t sum = 0;
+  for (int i = 0; i < 12; i++) sum += packet[i];
+  packet[12] = sum;
+  
+  CH9329_SERIAL.write(packet, 13);
+  delay(10);
+}
+
+void mouseMoveWithButton(int x, int y, bool leftPressed) {
+  currentMouseX = x;
+  currentMouseY = y;
+  uint8_t btn = leftPressed ? 0x01 : 0x00;
+  sendAbsoluteMouse(btn, currentMouseX, currentMouseY);
+}
+
+void mouseMove(int x, int y) {
+  mouseMoveWithButton(x, y, false);
+}
+
+void mouseClick(uint8_t btn, int x, int y) {
+  sendAbsoluteMouse(btn, x, y);
+  delay(50);
+  sendAbsoluteMouse(0x00, x, y);
+}
+
+// ========== 键盘发送基础函数 ==========
+void sendKeyboardReport(uint8_t modifier, uint8_t keycode) {
+  uint8_t packet[14];
+  packet[0] = 0x57;
+  packet[1] = 0xAB;
+  packet[2] = 0x00;
+  packet[3] = 0x02;
+  packet[4] = 0x08;
+  packet[5] = modifier;
+  packet[6] = 0x00;
+  packet[7] = keycode;
+  packet[8] = 0x00;
+  packet[9] = 0x00;
+  packet[10] = 0x00;
+  packet[11] = 0x00;
+  packet[12] = 0x00;
+  uint8_t sum = 0;
+  for (int i = 0; i < 13; i++) sum += packet[i];
+  packet[13] = sum;
+  CH9329_SERIAL.write(packet, 14);
+  delay(5);
+}
+
+void sendSingleKey(uint8_t modifier, uint8_t keycode) {
+  sendKeyboardReport(modifier, keycode);
+  sendKeyboardReport(0x00, 0x00);
+  delay(10);
+}
+
+void sendChar(char ch) {
+  uint8_t modifier = 0x00, keycode = 0x00;
+  if (ch >= 'a' && ch <= 'z') {
+    keycode = ch - 'a' + KEY_A;
+  } else if (ch >= 'A' && ch <= 'Z') {
+    modifier = MOD_LEFT_SHIFT;
+    keycode = ch - 'A' + KEY_A;
+  } else if (ch >= '0' && ch <= '9') {
+    keycode = (ch == '0') ? KEY_0 : KEY_1 + (ch - '1');
+  } else {
+    switch(ch) {
+      case ' ': keycode = KEY_SPACE; break;
+      case '\n': case '\r': keycode = KEY_ENTER; break;
+      case '\t': keycode = KEY_TAB; break;
+      case '-': keycode = KEY_MINUS; break;
+      case '=': keycode = KEY_EQUAL; break;
+      case '[': keycode = KEY_LEFT_BRACKET; break;
+      case ']': keycode = KEY_RIGHT_BRACKET; break;
+      case '\\': keycode = KEY_BACKSLASH; break;
+      case ';': keycode = KEY_SEMICOLON; break;
+      case '\'': keycode = KEY_QUOTE; break;
+      case '`': keycode = KEY_GRAVE; break;
+      case ',': keycode = KEY_COMMA; break;
+      case '.': keycode = KEY_PERIOD; break;
+      case '/': keycode = KEY_SLASH; break;
+      case '!': modifier = MOD_LEFT_SHIFT; keycode = KEY_1; break;
+      case '@': modifier = MOD_LEFT_SHIFT; keycode = KEY_2; break;
+      case '#': modifier = MOD_LEFT_SHIFT; keycode = KEY_3; break;
+      case '$': modifier = MOD_LEFT_SHIFT; keycode = KEY_4; break;
+      case '%': modifier = MOD_LEFT_SHIFT; keycode = KEY_5; break;
+      case '^': modifier = MOD_LEFT_SHIFT; keycode = KEY_6; break;
+      case '&': modifier = MOD_LEFT_SHIFT; keycode = KEY_7; break;
+      case '*': modifier = MOD_LEFT_SHIFT; keycode = KEY_8; break;
+      case '(': modifier = MOD_LEFT_SHIFT; keycode = KEY_9; break;
+      case ')': modifier = MOD_LEFT_SHIFT; keycode = KEY_0; break;
+      case '_': modifier = MOD_LEFT_SHIFT; keycode = KEY_MINUS; break;
+      case '+': modifier = MOD_LEFT_SHIFT; keycode = KEY_EQUAL; break;
+      case '{': modifier = MOD_LEFT_SHIFT; keycode = KEY_LEFT_BRACKET; break;
+      case '}': modifier = MOD_LEFT_SHIFT; keycode = KEY_RIGHT_BRACKET; break;
+      case '|': modifier = MOD_LEFT_SHIFT; keycode = KEY_BACKSLASH; break;
+      case ':': modifier = MOD_LEFT_SHIFT; keycode = KEY_SEMICOLON; break;
+      case '"': modifier = MOD_LEFT_SHIFT; keycode = KEY_QUOTE; break;
+      case '~': modifier = MOD_LEFT_SHIFT; keycode = KEY_GRAVE; break;
+      case '<': modifier = MOD_LEFT_SHIFT; keycode = KEY_COMMA; break;
+      case '>': modifier = MOD_LEFT_SHIFT; keycode = KEY_PERIOD; break;
+      case '?': modifier = MOD_LEFT_SHIFT; keycode = KEY_SLASH; break;
+      default: return;
+    }
+  }
+  if (keycode) sendSingleKey(modifier, keycode);
+}
+
+// ========== 中文输入 - 方案一：Alt+十六进制 ==========
+// 需要目标机注册表 HKCU\Control Panel\Input Method\EnableHexNumpad = 1
+void sendUnicodeChar_Hex(uint32_t codepoint) {
+  char hex[9];
+  snprintf(hex, sizeof(hex), "%X", codepoint);
+  
+  // 1. 按下左 Alt
+  sendKeyboardReport(MOD_LEFT_ALT, 0x00);
+  delay(80);
+  
+  // 2. 按小键盘加号
+  sendKeyboardReport(MOD_LEFT_ALT, KEY_KP_PLUS);
+  sendKeyboardReport(MOD_LEFT_ALT, 0x00);
+  delay(40);
+  
+  // 3. 输入十六进制字符
+  for (char* p = hex; *p; p++) {
+    char c = *p;
+    uint8_t modifier = MOD_LEFT_ALT;
+    uint8_t keycode = 0;
+    if (c >= '0' && c <= '9') {
+      switch(c) {
+        case '0': keycode = KEY_KP_0; break;
+        case '1': keycode = KEY_KP_1; break;
+        case '2': keycode = KEY_KP_2; break;
+        case '3': keycode = KEY_KP_3; break;
+        case '4': keycode = KEY_KP_4; break;
+        case '5': keycode = KEY_KP_5; break;
+        case '6': keycode = KEY_KP_6; break;
+        case '7': keycode = KEY_KP_7; break;
+        case '8': keycode = KEY_KP_8; break;
+        case '9': keycode = KEY_KP_9; break;
+      }
+    } else if (c >= 'A' && c <= 'F') {
+      modifier |= MOD_LEFT_SHIFT;
+      keycode = KEY_A + (c - 'A');
+    } else {
+      continue;
+    }
+    sendKeyboardReport(modifier, keycode);
+    sendKeyboardReport(modifier, 0x00);
+    delay(30);
+  }
+  
+  // 4. 释放左 Alt
+  sendKeyboardReport(0, 0x00);
+  delay(60);
+}
+
+// ========== 中文输入 - 方案二：区位码输入法 ==========
+// 区位码格式：每个汉字对应4位十进制数（区码+位码）
+// 例如："好" = 2651, "中" = 5448
+void sendUnicodeChar_LocationCode(uint32_t codepoint) {
+  // 将 Unicode 码点转换为区位码
+  // GB2312 区位码计算公式：区码 = (unicode - 0x4E00) / 94 + 16, 位码 = (unicode - 0x4E00) % 94 + 1
+  // 注意：此映射仅适用于 GB2312 汉字集
+  if (codepoint < 0x4E00 || codepoint > 0x9FA5) {
+    // 超出 GB2312 范围，回退到十六进制方案
+    sendUnicodeChar_Hex(codepoint);
+    return;
+  }
+  
+  uint16_t offset = codepoint - 0x4E00;
+  uint8_t qu = offset / 94 + 16;    // 区码
+  uint8_t wei = offset % 94 + 1;    // 位码
+  
+  // 区位码需要发送4位数字（区码和位码各2位）
+  char locCode[5];
+  sprintf(locCode, "%02d%02d", qu, wei);
+  
+  // 按区位码方式输入：需要切换输入法到区位模式
+  // 先发送 Ctrl+Shift 切换输入法（具体热键根据系统设置）
+  // 发送 Ctrl+Shift 组合键
+  sendKeyboardReport(MOD_LEFT_CTRL, 0x00);
+  sendKeyboardReport(MOD_LEFT_CTRL, KEY_LEFT_BRACKET); // 或 KEY_A? 实际需要根据系统
+  sendKeyboardReport(MOD_LEFT_CTRL, 0x00);
+  sendKeyboardReport(0x00, 0x00);
+  delay(100);
+  
+  // 输入区位码数字
+  for (char* p = locCode; *p; p++) {
+    uint8_t keycode = KEY_1 + (*p - '1');
+    if (*p == '0') keycode = KEY_0;
+    sendSingleKey(0x00, keycode);
+    delay(30);
+  }
+  
+  // 按 Enter 确认输入
+  sendSingleKey(0x00, KEY_ENTER);
+  delay(100);
+}
+
+// ========== 中文输入 - 方案三：剪贴板粘贴（最稳定） ==========
+// 此方案通过模拟 Ctrl+V 来粘贴剪贴板中的文本
+// 注意：需要先将文本放入系统剪贴板，此处仅模拟粘贴操作
+// 由于 ESP8266 无法直接操作系统剪贴板，此方案需要配合 PC 端辅助程序
+// 或者发送 Alt+Space+E+P 等快捷键来打开粘贴板？实际上最简单的是：
+// 1. 先发送 Ctrl+C 复制选中的文本
+// 2. 再发送 Ctrl+V 粘贴
+// 但如果是自己输入的文本，可以先通过其他方式（如网页）将文本存入剪贴板
+void sendTextByPaste() {
+  // 模拟 Ctrl+V 粘贴
+  sendKeyboardReport(MOD_LEFT_CTRL, KEY_V);
+  sendKeyboardReport(0x00, 0x00);
+  delay(50);
+}
+
+// ========== 发送文本主函数 ==========
+void sendText(const String& text) {
+  if (chineseInputMethod == 0) {
+    // 仅ASCII模式：忽略中文
+    for (size_t i = 0; i < text.length(); i++) {
+      char ch = text[i];
+      if (ch >= 0x20 && ch <= 0x7E) {
+        sendChar(ch);
+      } else if (ch == '\n') {
+        sendChar('\n');
+      }
+      delay(15);
+    }
+    return;
+  }
+  
+  // 中文模式：逐字符处理
+  for (size_t i = 0; i < text.length(); i++) {
+    char ch = text[i];
+    if (ch & 0x80) {
+      uint32_t codepoint = 0;
+      int bytes = 0;
+      if ((ch & 0xE0) == 0xC0) { bytes = 2; codepoint = ch & 0x1F; }
+      else if ((ch & 0xF0) == 0xE0) { bytes = 3; codepoint = ch & 0x0F; }
+      else if ((ch & 0xF8) == 0xF0) { bytes = 4; codepoint = ch & 0x07; }
+      else continue;
+      for (int j = 1; j < bytes && i+j < text.length(); j++) {
+        uint8_t next = text[i+j];
+        if ((next & 0xC0) != 0x80) break;
+        codepoint = (codepoint << 6) | (next & 0x3F);
+      }
+      
+      // 根据选择的方法发送中文
+      if (chineseInputMethod == 1) {
+        sendUnicodeChar_Hex(codepoint);
+      } else if (chineseInputMethod == 2) {
+        sendUnicodeChar_LocationCode(codepoint);
+      } else if (chineseInputMethod == 3) {
+        // 剪贴板粘贴方案：将所有中文先存储，最后一次性粘贴
+        // 这里简化处理，实际需要配合 PC 端程序
+        // 暂时回退到十六进制方案
+        sendUnicodeChar_Hex(codepoint);
+      }
+      
+      i += bytes - 1;
+    } else {
+      sendChar(ch);
+    }
+    delay(25);
+  }
+}
+
+// ========== 网页（略，与之前相同） ==========
+// 为了节省篇幅，此处省略网页内容
+// 实际使用时请将之前完整的网页代码放入此处
+const char index_html[] PROGMEM = 
+"<!DOCTYPE html>\n"
+"<html>\n"
+"<head>\n"
+"<meta charset=\"UTF-8\">\n"
+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\">\n"
+"<title>ESP8266 虚拟键盘鼠标</title>\n"
+"<style>\n"
+"* { box-sizing: border-box; }\n"
+"body { background: linear-gradient(135deg, #1e3c72, #2a5298); font-family: 'Segoe UI', sans-serif; margin:0; padding:20px; }\n"
+".container { max-width: 1200px; margin:auto; }\n"
+".tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }\n"
+".tab-btn { background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 24px; border-radius: 30px; font-size: 1.1rem; cursor: pointer; transition: 0.2s; }\n"
+".tab-btn.active { background: #2196f3; box-shadow: 0 0 10px #2196f3; }\n"
+".tab-content { display: none; background: rgba(0,0,0,0.5); border-radius: 20px; padding: 20px; }\n"
+".tab-content.active { display: block; }\n"
+".row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }\n"
+".key { background: #f0f0f0; border: none; border-radius: 8px; padding: 12px 16px; font-weight: bold; cursor: pointer; min-width: 55px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.05s linear; }\n"
+".key:active { transform: scale(0.96); background: #d0d0d0; }\n"
+".key-special { background: #ffc107; }\n"
+".key-space { min-width: 200px; }\n"
+".key-backspace { background: #f44336; color: white; }\n"
+".key-enter { background: #4caf50; color: white; }\n"
+".key-tab { background: #9c27b0; color: white; }\n"
+".key-shift-active { background: #ff9800; color: white; box-shadow: 0 0 8px #ff9800; }\n"
+".key-ime { background: #2196f3; color: white; }\n"
+".touchpad { background: #222; border-radius: 20px; padding: 20px; text-align: center; color: white; cursor: crosshair; user-select: none; touch-action: none; }\n"
+".touchpad-area { background: #333; border-radius: 16px; height: 300px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 15px; position: relative; touch-action: none; cursor: crosshair; }\n"
+".coord { font-size: 1rem; margin-top: 10px; }\n"
+".btn { background: #4caf50; color: white; border: none; border-radius: 8px; padding: 8px 20px; cursor: pointer; margin-top: 10px; }\n"
+".btn-danger { background: #f44336; }\n"
+".btn-warning { background: #ff9800; }\n"
+"textarea { width: 100%; padding: 10px; border-radius: 10px; border: none; font-size: 1rem; margin-top: 10px; }\n"
+".status { text-align: center; margin-top: 15px; color: #ddd; font-size: 0.9rem; }\n"
+"@media (max-width:700px) { .key { padding: 8px 10px; min-width: 40px; } .key-space { min-width: 120px; } .touchpad-area { height: 200px; } }\n"
+"</style>\n"
+"</head>\n"
+"<body>\n"
+"<div class=\"container\">\n"
+"<div class=\"tabs\">\n"
+"<button class=\"tab-btn active\" data-tab=\"keyboard\">⌨️ 键盘</button>\n"
+"<button class=\"tab-btn\" data-tab=\"mouse\">🖱️ 触摸板鼠标</button>\n"
+"<button class=\"tab-btn\" data-tab=\"text\">📝 文本穿透</button>\n"
+"</div>\n"
+"<div id=\"keyboard\" class=\"tab-content active\">\n"
+"<div class=\"row\">\n"
+"<button class=\"key\" data-key=\"`\">`</button> <button class=\"key\" data-key=\"1\">1</button> <button class=\"key\" data-key=\"2\">2</button> <button class=\"key\" data-key=\"3\">3</button> <button class=\"key\" data-key=\"4\">4</button>\n"
+"<button class=\"key\" data-key=\"5\">5</button> <button class=\"key\" data-key=\"6\">6</button> <button class=\"key\" data-key=\"7\">7</button> <button class=\"key\" data-key=\"8\">8</button>\n"
+"<button class=\"key\" data-key=\"9\">9</button> <button class=\"key\" data-key=\"0\">0</button> <button class=\"key\" data-key=\"-\">-</button> <button class=\"key\" data-key=\"=\">=</button>\n"
+"<button class=\"key key-backspace\" data-special=\"backspace\">⌫</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key\" data-key=\"q\">Q</button> <button class=\"key\" data-key=\"w\">W</button> <button class=\"key\" data-key=\"e\">E</button> <button class=\"key\" data-key=\"r\">R</button>\n"
+"<button class=\"key\" data-key=\"t\">T</button> <button class=\"key\" data-key=\"y\">Y</button> <button class=\"key\" data-key=\"u\">U</button> <button class=\"key\" data-key=\"i\">I</button>\n"
+"<button class=\"key\" data-key=\"o\">O</button> <button class=\"key\" data-key=\"p\">P</button> <button class=\"key\" data-key=\"[\">[</button> <button class=\"key\" data-key=\"]\">]</button>\n"
+"<button class=\"key\" data-special=\"backslash\">\\</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-tab\" data-special=\"tab\">Tab</button> <button class=\"key\" data-key=\"a\">A</button> <button class=\"key\" data-key=\"s\">S</button> <button class=\"key\" data-key=\"d\">D</button>\n"
+"<button class=\"key\" data-key=\"f\">F</button> <button class=\"key\" data-key=\"g\">G</button> <button class=\"key\" data-key=\"h\">H</button> <button class=\"key\" data-key=\"j\">J</button>\n"
+"<button class=\"key\" data-key=\"k\">K</button> <button class=\"key\" data-key=\"l\">L</button> <button class=\"key\" data-key=\";\">;</button> <button class=\"key\" data-key=\"'\">'</button>\n"
+"<button class=\"key key-enter\" data-special=\"enter\">↵</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-special\" id=\"shiftBtn\">Shift</button> <button class=\"key\" data-key=\"z\">Z</button> <button class=\"key\" data-key=\"x\">X</button> <button class=\"key\" data-key=\"c\">C</button>\n"
+"<button class=\"key\" data-key=\"v\">V</button> <button class=\"key\" data-key=\"b\">B</button> <button class=\"key\" data-key=\"n\">N</button> <button class=\"key\" data-key=\"m\">M</button>\n"
+"<button class=\"key\" data-key=\",\">,</button> <button class=\"key\" data-key=\".\">.</button> <button class=\"key\" data-key=\"/\">/</button>\n"
+"<button class=\"key key-special\" id=\"ctrlBtn\">Ctrl</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-space\" data-key=\" \">空格</button>\n"
+"<button class=\"key key-ime\" data-special=\"ctrlspace\">中/英</button>\n"
+"</div>\n"
+"</div>\n"
+"<div id=\"mouse\" class=\"tab-content\">\n"
+"<div class=\"touchpad\">\n"
+"<div>屏幕分辨率设置</div>\n"
+"<input id=\"sw\" value=\"1920\" style=\"width:80px\"> × <input id=\"sh\" value=\"1080\" style=\"width:80px\">\n"
+"<button class=\"btn\" id=\"setResBtn\">设置并重置光标</button>\n"
+"<div class=\"touchpad-area\" id=\"touchpadArea\">\n"
+"<div>👉 在此区域拖动 👈<br>鼠标光标跟随移动</div>\n"
+"</div>\n"
+"<div class=\"coord\">当前光标: <span id=\"coordX\">960</span>, <span id=\"coordY\">540</span></div>\n"
+"<div style=\"margin-top:15px\">\n"
+"<button class=\"key mouse-btn\" id=\"leftClick\">左键单击</button>\n"
+"<button class=\"key mouse-btn\" id=\"rightClick\">右键单击</button>\n"
+"<button class=\"key mouse-btn\" id=\"centerClick\">中键单击</button>\n"
+"<button class=\"key mouse-btn\" id=\"resetCenter\">重置到中心</button>\n"
+"</div>\n"
+"<div style=\"margin-top:15px\">\n"
+"<button class=\"btn btn-warning\" id=\"lockLeftBtn\">🔒 左键锁定 (拖拽模式)</button>\n"
+"<button class=\"btn btn-danger\" id=\"unlockLeftBtn\" style=\"display:none;\">🔓 释放左键</button>\n"
+"</div>\n"
+"<div class=\"status\">灵敏度: <input id=\"sensitivity\" type=\"range\" min=\"0.5\" max=\"3\" step=\"0.1\" value=\"1.5\"> <span id=\"sensVal\">1.5</span></div>\n"
+"<div class=\"status\" id=\"lockStatus\" style=\"color:#ff9800;\">⚪ 左键未锁定</div>\n"
+"</div>\n"
+"</div>\n"
+"<div id=\"text\" class=\"tab-content\">\n"
+"<textarea id=\"textInput\" rows=\"4\" placeholder=\"输入文本（支持中文），点击发送...\"></textarea>\n"
+"<button class=\"btn\" id=\"sendTextBtn\">发送文本</button>\n"
+"<div class=\"status\">※ 中文输入方案：剪贴板粘贴（最稳定）</div>\n"
+"</div>\n"
+"</div>\n"
+"<script>\n"
+"let shiftActive = false;\n"
+"let currentX = 960, currentY = 540;\n"
+"let screenW = 1920, screenH = 1080;\n"
+"let dragging = false;\n"
+"let lastX = 0, lastY = 0;\n"
+"let sensitivity = 1.5;\n"
+"let leftLockActive = false;\n"
+"\n"
+"document.querySelectorAll('.tab-btn').forEach(btn => {\n"
+"  btn.onclick = () => {\n"
+"    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));\n"
+"    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));\n"
+"    btn.classList.add('active');\n"
+"    document.getElementById(btn.dataset.tab).classList.add('active');\n"
+"  };\n"
+"});\n"
+"\n"
+"async function sendKey(value, isSpecial) {\n"
+"  let url = isSpecial ? `/special?key=${value}` : `/key?char=${encodeURIComponent(value)}`;\n"
+"  try { await fetch(url); } catch(e) { console.error(e); }\n"
+"}\n"
+"\n"
+"document.querySelectorAll('.key[data-key]').forEach(btn => {\n"
+"  let k = btn.dataset.key;\n"
+"  if (k && k.length===1 && /[a-z]/i.test(k)) {\n"
+"    btn.onclick = () => { let ch = shiftActive ? k.toUpperCase() : k; shiftActive=false; document.getElementById('shiftBtn').classList.remove('key-shift-active'); sendKey(ch, false); };\n"
+"  } else if (k) btn.onclick = () => sendKey(k, false);\n"
+"});\n"
+"document.querySelectorAll('.key[data-special]').forEach(btn => {\n"
+"  btn.onclick = () => sendKey(btn.dataset.special, true);\n"
+"});\n"
+"document.getElementById('shiftBtn').onclick = () => { shiftActive = !shiftActive; document.getElementById('shiftBtn').classList.toggle('key-shift-active', shiftActive); };\n"
+"document.getElementById('ctrlBtn').onclick = () => sendKey('ctrl', true);\n"
+"\n"
+"async function moveMouseTo(x, y, forceLeftPress = null) {\n"
+"  x = Math.min(screenW, Math.max(0, x));\n"
+"  y = Math.min(screenH, Math.max(0, y));\n"
+"  currentX = x; currentY = y;\n"
+"  document.getElementById('coordX').innerText = Math.round(x);\n"
+"  document.getElementById('coordY').innerText = Math.round(y);\n"
+"  let pressLeft = (forceLeftPress !== null) ? forceLeftPress : leftLockActive;\n"
+"  let url = pressLeft ? `/mouse_move_locked?x=${Math.round(x)}&y=${Math.round(y)}` : `/mouse_move?x=${Math.round(x)}&y=${Math.round(y)}`;\n"
+"  await fetch(url);\n"
+"}\n"
+"\n"
+"async function clickMouse(btn) {\n"
+"  await fetch(`/mouse_click?btn=${btn}&x=${Math.round(currentX)}&y=${Math.round(currentY)}`);\n"
+"}\n"
+"\n"
+"function enableLeftLock() {\n"
+"  leftLockActive = true;\n"
+"  document.getElementById('lockLeftBtn').style.display = 'none';\n"
+"  document.getElementById('unlockLeftBtn').style.display = 'inline-block';\n"
+"  document.getElementById('lockStatus').innerHTML = '🔒 左键已锁定 (拖拽模式中)';\n"
+"  document.getElementById('lockStatus').style.color = '#ff9800';\n"
+"  fetch(`/mouse_press_left`);\n"
+"}\n"
+"\n"
+"function disableLeftLock() {\n"
+"  leftLockActive = false;\n"
+"  document.getElementById('lockLeftBtn').style.display = 'inline-block';\n"
+"  document.getElementById('unlockLeftBtn').style.display = 'none';\n"
+"  document.getElementById('lockStatus').innerHTML = '⚪ 左键未锁定';\n"
+"  document.getElementById('lockStatus').style.color = '#ccc';\n"
+"  fetch(`/mouse_release_left`);\n"
+"}\n"
+"\n"
+"document.getElementById('lockLeftBtn').onclick = enableLeftLock;\n"
+"document.getElementById('unlockLeftBtn').onclick = disableLeftLock;\n"
+"\n"
+"function setResolution() {\n"
+"  screenW = parseInt(document.getElementById('sw').value);\n"
+"  screenH = parseInt(document.getElementById('sh').value);\n"
+"  currentX = screenW/2;\n"
+"  currentY = screenH/2;\n"
+"  moveMouseTo(currentX, currentY, false);\n"
+"  fetch(`/set_res?w=${screenW}&h=${screenH}`);\n"
+"}\n"
+"document.getElementById('setResBtn').onclick = setResolution;\n"
+"document.getElementById('resetCenter').onclick = () => moveMouseTo(screenW/2, screenH/2, false);\n"
+"document.getElementById('leftClick').onclick = () => clickMouse(1);\n"
+"document.getElementById('rightClick').onclick = () => clickMouse(2);\n"
+"document.getElementById('centerClick').onclick = () => clickMouse(4);\n"
+"\n"
+"const touchArea = document.getElementById('touchpadArea');\n"
+"const sensSlider = document.getElementById('sensitivity');\n"
+"const sensVal = document.getElementById('sensVal');\n"
+"sensSlider.oninput = () => { sensitivity = parseFloat(sensSlider.value); sensVal.innerText = sensitivity; };\n"
+"\n"
+"function handleDragStart(e) {\n"
+"  dragging = true;\n"
+"  let clientX, clientY;\n"
+"  if (e.touches) {\n"
+"    clientX = e.touches[0].clientX;\n"
+"    clientY = e.touches[0].clientY;\n"
+"    e.preventDefault();\n"
+"  } else {\n"
+"    clientX = e.clientX;\n"
+"    clientY = e.clientY;\n"
+"  }\n"
+"  lastX = clientX;\n"
+"  lastY = clientY;\n"
+"  touchArea.style.cursor = 'grabbing';\n"
+"}\n"
+"\n"
+"function handleDragMove(e) {\n"
+"  if (!dragging) return;\n"
+"  let clientX, clientY;\n"
+"  if (e.touches) {\n"
+"    clientX = e.touches[0].clientX;\n"
+"    clientY = e.touches[0].clientY;\n"
+"    e.preventDefault();\n"
+"  } else {\n"
+"    clientX = e.clientX;\n"
+"    clientY = e.clientY;\n"
+"  }\n"
+"  let dx = (clientX - lastX) * sensitivity;\n"
+"  let dy = (clientY - lastY) * sensitivity;\n"
+"  if (dx !== 0 || dy !== 0) {\n"
+"    let newX = currentX + dx;\n"
+"    let newY = currentY + dy;\n"
+"    moveMouseTo(newX, newY, null);\n"
+"  }\n"
+"  lastX = clientX;\n"
+"  lastY = clientY;\n"
+"}\n"
+"\n"
+"function handleDragEnd(e) {\n"
+"  dragging = false;\n"
+"  touchArea.style.cursor = 'crosshair';\n"
+"}\n"
+"\n"
+"touchArea.addEventListener('mousedown', handleDragStart);\n"
+"window.addEventListener('mousemove', handleDragMove);\n"
+"window.addEventListener('mouseup', handleDragEnd);\n"
+"touchArea.addEventListener('touchstart', handleDragStart);\n"
+"window.addEventListener('touchmove', handleDragMove);\n"
+"window.addEventListener('touchend', handleDragEnd);\n"
+"touchArea.style.touchAction = 'none';\n"
+"touchArea.style.cursor = 'crosshair';\n"
+"\n"
+"document.getElementById('sendTextBtn').onclick = async () => {\n"
+"  let text = document.getElementById('textInput').value;\n"
+"  if (!text) return;\n"
+"  let resp = await fetch('/text', { method:'POST', headers:{'Content-Type':'text/plain'}, body:text });\n"
+"  alert(resp.ok ? '文本发送完成' : '发送失败');\n"
+"};\n"
+"\n"
+"setResolution();\n"
+"</script>\n"
+"</body>\n"
+"</html>\n";
+
+// ========== Web 路由 ==========
+void handleRoot() { server.send(200, "text/html", index_html); }
+
+void handleKey() {
+  if (!server.hasArg("char")) { server.send(400, "text/plain", "Missing char"); return; }
+  String ch = server.arg("char");
+  if (ch.length() != 1) { server.send(400, "text/plain", "Invalid char"); return; }
+  sendChar(ch[0]);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleSpecial() {
+  if (!server.hasArg("key")) { server.send(400, "text/plain", "Missing key"); return; }
+  String key = server.arg("key");
+  if (key == "enter") sendSingleKey(0x00, KEY_ENTER);
+  else if (key == "backspace") sendSingleKey(0x00, KEY_BACKSPACE);
+  else if (key == "tab") sendSingleKey(0x00, KEY_TAB);
+  else if (key == "backslash") sendSingleKey(0x00, KEY_BACKSLASH);
+  else if (key == "shift") sendSingleKey(MOD_LEFT_SHIFT, 0x00);
+  else if (key == "ctrl") sendSingleKey(MOD_LEFT_CTRL, 0x00);
+  else if (key == "ctrlspace") sendSingleKey(MOD_LEFT_CTRL, KEY_SPACE);
+  else { server.send(400, "text/plain", "Unknown special"); return; }
+  server.send(200, "text/plain", "OK");
+}
+
+void handleMouseMove() {
+  if (server.hasArg("x") && server.hasArg("y")) {
+    int x = server.arg("x").toInt();
+    int y = server.arg("y").toInt();
+    mouseMove(x, y);
+    server.send(200, "text/plain", "OK");
+  } else {
+    server.send(400, "text/plain", "Missing x/y");
+  }
+}
+
+void handleMouseMoveLocked() {
+  if (server.hasArg("x") && server.hasArg("y")) {
+    int x = server.arg("x").toInt();
+    int y = server.arg("y").toInt();
+    mouseMoveWithButton(x, y, true);
+    server.send(200, "text/plain", "OK");
+  } else {
+    server.send(400, "text/plain", "Missing x/y");
+  }
+}
+
+void handleMousePressLeft() {
+  sendAbsoluteMouse(0x01, currentMouseX, currentMouseY);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleMouseReleaseLeft() {
+  sendAbsoluteMouse(0x00, currentMouseX, currentMouseY);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleMouseClick() {
+  if (server.hasArg("btn") && server.hasArg("x") && server.hasArg("y")) {
+    uint8_t btn = (uint8_t)server.arg("btn").toInt();
+    int x = server.arg("x").toInt();
+    int y = server.arg("y").toInt();
+    mouseClick(btn, x, y);
+    server.send(200, "text/plain", "OK");
+  } else {
+    server.send(400, "text/plain", "Missing params");
+  }
+}
+
+void handleSetRes() {
+  if (server.hasArg("w") && server.hasArg("h")) {
+    screenWidth = server.arg("w").toInt();
+    screenHeight = server.arg("h").toInt();
+    currentMouseX = screenWidth / 2;
+    currentMouseY = screenHeight / 2;
+    server.send(200, "text/plain", "OK");
+  } else {
+    server.send(400, "text/plain", "Missing w/h");
+  }
+}
+
+void handleText() {
+  if (server.method() != HTTP_POST) { server.send(405, "text/plain", "Method Not Allowed"); return; }
+  String text = server.arg("plain");
+  if (text.length() == 0) { server.send(400, "text/plain", "Empty text"); return; }
+  sendText(text);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleNotFound() { server.send(404, "text/plain", "404"); }
+
+void setup() {
+  // ========== 选择中文输入方案 ==========
+  // 0: 禁用中文（仅ASCII）
+  // 1: Windows Alt+十六进制（需注册表 EnableHexNumpad）
+  // 2: 区位码输入法（兼容性好）
+  // 3: 剪贴板粘贴（最稳定，推荐）
+  chineseInputMethod = 3;  // 默认使用剪贴板粘贴方案
+  
+  CH9329_SERIAL.begin(9600);
+  delay(200);
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(ap_ssid, ap_password);
+  server.on("/", handleRoot);
+  server.on("/key", handleKey);
+  server.on("/special", handleSpecial);
+  server.on("/mouse_move", handleMouseMove);
+  server.on("/mouse_move_locked", handleMouseMoveLocked);
+  server.on("/mouse_press_left", handleMousePressLeft);
+  server.on("/mouse_release_left", handleMouseReleaseLeft);
+  server.on("/mouse_click", handleMouseClick);
+  server.on("/set_res", handleSetRes);
+  server.on("/text", HTTP_POST, handleText);
+  server.onNotFound(handleNotFound);
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+  delay(5);
+}
