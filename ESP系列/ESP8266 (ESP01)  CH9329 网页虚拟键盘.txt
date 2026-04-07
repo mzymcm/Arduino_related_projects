@@ -1,8 +1,9 @@
 /*
- * ESP8266 (ESP01) + CH9329 协议模式 - 网页虚拟键盘（单键发送）
+ * ESP8266 (ESP01) + CH9329 协议模式 - 网页虚拟键盘（单键发送 + Ctrl+空格）
  * 硬件：CH9329 连接至 UART0 (GPIO1=TX, GPIO3=RX)
  * 模式：协议传输模式（默认），波特率9600
  * 功能：ESP8266 开启 WiFi 热点，浏览器访问 192.168.4.1，点击按键即发送对应键盘敲击
+ *      新增 Ctrl+空格 组合键，用于关闭/切换中文输入法
  * CFG0/CFG1/MODE0/MODE1 全部悬空（默认模式0，协议传输）
  * 
  * 注意：烧录时需断开 CH9329 与 GPIO1/GPIO3 的连接，烧录完成后再接上。
@@ -77,6 +78,7 @@ ESP8266WebServer server(80);
 #define KEY_SLASH   0x38
 
 #define MOD_LEFT_SHIFT  0x02
+#define MOD_LEFT_CTRL   0x01   // 新增左Ctrl修饰符
 
 // ========== 发送单个按键（按下+释放） ==========
 void sendSingleKey(uint8_t modifier, uint8_t keycode) {
@@ -171,7 +173,7 @@ void sendSpecialKey(uint8_t keycode) {
   sendSingleKey(0x00, keycode);
 }
 
-// ========== 网页 HTML（内容同上，略作精简） ==========
+// ========== 网页 HTML（增加 Ctrl+空格 按钮） ==========
 const char index_html[] PROGMEM = 
 "<!DOCTYPE html>\n"
 "<html lang=\"zh\">\n"
@@ -247,6 +249,10 @@ const char index_html[] PROGMEM =
 "            color: white;\n"
 "            box-shadow: 0 0 8px #ff9800;\n"
 "        }\n"
+"        .key-ime {                     /* 新增：输入法切换按钮样式 */\n"
+"            background: #2196f3;\n"
+"            color: white;\n"
+"        }\n"
 "        .status {\n"
 "            text-align: center;\n"
 "            margin-top: 15px;\n"
@@ -302,8 +308,10 @@ const char index_html[] PROGMEM =
 "    </div>\n"
 "    <div class=\"row\">\n"
 "        <button class=\"key key-space\" data-key=\" \">空格</button>\n"
+"        <!-- 新增：Ctrl+空格 组合键按钮，用于切换输入法 -->\n"
+"        <button class=\"key key-ime\" data-special=\"ctrlspace\">中/英</button>\n"
 "    </div>\n"
-"    <div class=\"status\">点击 Shift 按钮后，下一个字母自动大写</div>\n"
+"    <div class=\"status\">点击 Shift 按钮后，下一个字母自动大写 | 点击“中/英”可关闭中文输入法</div>\n"
 "</div>\n"
 "<script>\n"
 "    let shiftActive = false;\n"
@@ -404,7 +412,9 @@ void handleSpecial() {
     } else if (key == "shift") {
       sendSingleKey(MOD_LEFT_SHIFT, 0x00);
     } else if (key == "ctrl") {
-      sendSingleKey(0x01, 0x00);      // 左 Ctrl
+      sendSingleKey(MOD_LEFT_CTRL, 0x00);      // 左 Ctrl 单独按下释放
+    } else if (key == "ctrlspace") {            // 新增：Ctrl+空格 组合键
+      sendSingleKey(MOD_LEFT_CTRL, KEY_SPACE);  // 同时按下 Ctrl 和 空格
     } else {
       server.send(400, "text/plain", "Unknown special");
       return;
