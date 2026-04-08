@@ -1,12 +1,8 @@
 /*
- * ESP8266 + CH9329 完整虚拟键盘鼠标（绝对鼠标 + 触摸板拖动 + 中文穿透最终版）
- * 鼠标：绝对坐标，触摸板拖动，支持左键锁定拖拽
- * 键盘：ASCII字符 + 中文穿透（三种可选方案）
- * 
- * 中文输入方案说明（在 setup() 函数中选择）：
- * 方案一：Windows Alt+十六进制输入法（默认，需开启注册表 EnableHexNumpad）
- * 方案二：区位码输入法（兼容性更好，无需额外配置）
- * 方案三：剪贴板粘贴（最稳定，通过模拟 Ctrl+V）
+ * ESP8266 + CH9329 虚拟键盘鼠标（优化版）
+ * 支持：绝对鼠标（触摸板拖动）、ASCII键盘、中文输入（Alt+十六进制/剪贴板粘贴）
+ * 中文方案1：Alt+十六进制（需目标机注册表 EnableHexNumpad=1）
+ * 中文方案3：剪贴板粘贴（网页端自动复制文本+模拟Ctrl+V）
  */
 
 #include <ESP8266WiFi.h>
@@ -24,7 +20,7 @@ int screenHeight = 1080;
 int currentMouseX = 960;
 int currentMouseY = 540;
 
-// ========== 键盘键码 ==========
+// ========== 键盘键码（HID Usage） ==========
 #define KEY_A       0x04
 #define KEY_B       0x05
 #define KEY_C       0x06
@@ -96,14 +92,82 @@ int currentMouseY = 540;
 #define MOD_LEFT_CTRL   0x01
 #define MOD_LEFT_ALT    0x04
 
-// ========== 全局变量：选择中文输入方案 ==========
-// 0: 禁用中文（仅ASCII）
-// 1: Windows Alt+十六进制（需注册表 EnableHexNumpad）
-// 2: 区位码输入法（兼容性好）
-// 3: 剪贴板粘贴（最稳定，需确保目标窗口支持 Ctrl+V）
-int chineseInputMethod = 3;  // 默认使用剪贴板粘贴方案
+// 中文输入法选择（前端可动态切换，此处为默认值）
+int chineseInputMethod = 1;   // 1: Alt+十六进制, 3: 剪贴板粘贴
 
-// ========== 鼠标绝对坐标转换 ==========
+// ========== 辅助函数：累加和 ==========
+uint8_t calcSum(const uint8_t* data, int len) {
+  uint8_t sum = 0;
+  for (int i = 0; i < len; i++) sum += data[i];
+  return sum;
+}
+
+// ========== 发送命令并等待应答（可选重试） ==========
+bool sendCommandWithResponse(const uint8_t* packet, int len, uint8_t expectedCmd, int retries = 2) {
+  for (int attempt = 0; attempt <= retries; attempt++) {
+    CH9329_SERIAL.write(packet, len);
+    CH9329_SERIAL.flush();
+    
+    unsigned long start = millis();
+    uint8_t buffer[64];
+    int idx = 0;
+    while (millis() - start < 500) {
+      if (CH9329_SERIAL.available()) {
+        uint8_t c = CH9329_SERIAL.read();
+        if (idx == 0 && c != 0x57) continue;
+        buffer[idx++] = c;
+        if (idx >= 2 && buffer[0] == 0x57 && buffer[1] == 0xAB) {
+          if (idx >= 5) {
+            int dataLen = buffer[4];
+            int totalLen = 5 + dataLen + 1;
+            if (idx == totalLen) {
+              uint8_t sum = calcSum(buffer, totalLen - 1);
+              if (sum == buffer[totalLen - 1]) {
+                uint8_t respCmd = buffer[3];
+                if (respCmd == (expectedCmd | 0x80)) return true;
+                else if (respCmd == (expectedCmd | 0xC0)) break;
+              }
+              break;
+            }
+          }
+        }
+      }
+      yield();
+    }
+    while (CH9329_SERIAL.available()) CH9329_SERIAL.read();
+    delay(50);
+  }
+  return false;
+}
+
+// ========== 键盘发送（不等待应答） ==========
+void sendKeyboardReport(uint8_t modifier, uint8_t keycode) {
+  uint8_t packet[14];
+  packet[0] = 0x57;
+  packet[1] = 0xAB;
+  packet[2] = 0x00;
+  packet[3] = 0x02;
+  packet[4] = 0x08;
+  packet[5] = modifier;
+  packet[6] = 0x00;
+  packet[7] = keycode;
+  packet[8] = 0x00;
+  packet[9] = 0x00;
+  packet[10] = 0x00;
+  packet[11] = 0x00;
+  packet[12] = 0x00;
+  packet[13] = calcSum(packet, 13);
+  CH9329_SERIAL.write(packet, 14);
+}
+
+void sendSingleKey(uint8_t modifier, uint8_t keycode) {
+  sendKeyboardReport(modifier, keycode);
+  delay(10);
+  sendKeyboardReport(0x00, 0x00);
+  delay(15);
+}
+
+// ========== 鼠标绝对坐标 ==========
 void screenToChip(int screenX, int screenY, uint8_t &lowX, uint8_t &highX, uint8_t &lowY, uint8_t &highY) {
   uint16_t chipX = (uint32_t)screenX * 4096 / screenWidth;
   uint16_t chipY = (uint32_t)screenY * 4096 / screenHeight;
@@ -135,10 +199,7 @@ void sendAbsoluteMouse(uint8_t buttons, int screenX, int screenY, uint8_t wheel 
   packet[9] = lowY;
   packet[10] = highY;
   packet[11] = wheel;
-  uint8_t sum = 0;
-  for (int i = 0; i < 12; i++) sum += packet[i];
-  packet[12] = sum;
-  
+  packet[12] = calcSum(packet, 12);
   CH9329_SERIAL.write(packet, 13);
   delay(10);
 }
@@ -156,39 +217,55 @@ void mouseMove(int x, int y) {
 
 void mouseClick(uint8_t btn, int x, int y) {
   sendAbsoluteMouse(btn, x, y);
-  delay(50);
+  delay(80);
   sendAbsoluteMouse(0x00, x, y);
 }
 
-// ========== 键盘发送基础函数 ==========
-void sendKeyboardReport(uint8_t modifier, uint8_t keycode) {
-  uint8_t packet[14];
-  packet[0] = 0x57;
-  packet[1] = 0xAB;
-  packet[2] = 0x00;
-  packet[3] = 0x02;
-  packet[4] = 0x08;
-  packet[5] = modifier;
-  packet[6] = 0x00;
-  packet[7] = keycode;
-  packet[8] = 0x00;
-  packet[9] = 0x00;
-  packet[10] = 0x00;
-  packet[11] = 0x00;
-  packet[12] = 0x00;
-  uint8_t sum = 0;
-  for (int i = 0; i < 13; i++) sum += packet[i];
-  packet[13] = sum;
-  CH9329_SERIAL.write(packet, 14);
-  delay(5);
-}
-
-void sendSingleKey(uint8_t modifier, uint8_t keycode) {
-  sendKeyboardReport(modifier, keycode);
+// ========== 中文输入：Alt+十六进制（优化版） ==========
+void sendUnicodeChar_Hex(uint32_t codepoint) {
+  char hex[9];
+  snprintf(hex, sizeof(hex), "%X", codepoint);
+  
+  sendKeyboardReport(MOD_LEFT_ALT, 0x00);
+  delay(60);
+  sendKeyboardReport(MOD_LEFT_ALT, KEY_KP_PLUS);
+  delay(30);
+  sendKeyboardReport(MOD_LEFT_ALT, 0x00);
+  delay(20);
+  
+  for (char* p = hex; *p; p++) {
+    char c = *p;
+    uint8_t modifier = MOD_LEFT_ALT;
+    uint8_t keycode = 0;
+    if (c >= '0' && c <= '9') {
+      switch(c) {
+        case '0': keycode = KEY_KP_0; break;
+        case '1': keycode = KEY_KP_1; break;
+        case '2': keycode = KEY_KP_2; break;
+        case '3': keycode = KEY_KP_3; break;
+        case '4': keycode = KEY_KP_4; break;
+        case '5': keycode = KEY_KP_5; break;
+        case '6': keycode = KEY_KP_6; break;
+        case '7': keycode = KEY_KP_7; break;
+        case '8': keycode = KEY_KP_8; break;
+        case '9': keycode = KEY_KP_9; break;
+      }
+    } else if (c >= 'A' && c <= 'F') {
+      modifier |= MOD_LEFT_SHIFT;
+      keycode = KEY_A + (c - 'A');
+    } else {
+      continue;
+    }
+    sendKeyboardReport(modifier, keycode);
+    delay(20);
+    sendKeyboardReport(modifier, 0x00);
+    delay(15);
+  }
   sendKeyboardReport(0x00, 0x00);
-  delay(10);
+  delay(50);
 }
 
+// ========== ASCII字符发送 ==========
 void sendChar(char ch) {
   uint8_t modifier = 0x00, keycode = 0x00;
   if (ch >= 'a' && ch <= 'z') {
@@ -241,130 +318,18 @@ void sendChar(char ch) {
   if (keycode) sendSingleKey(modifier, keycode);
 }
 
-// ========== 中文输入 - 方案一：Alt+十六进制 ==========
-// 需要目标机注册表 HKCU\Control Panel\Input Method\EnableHexNumpad = 1
-void sendUnicodeChar_Hex(uint32_t codepoint) {
-  char hex[9];
-  snprintf(hex, sizeof(hex), "%X", codepoint);
-  
-  // 1. 按下左 Alt
-  sendKeyboardReport(MOD_LEFT_ALT, 0x00);
-  delay(80);
-  
-  // 2. 按小键盘加号
-  sendKeyboardReport(MOD_LEFT_ALT, KEY_KP_PLUS);
-  sendKeyboardReport(MOD_LEFT_ALT, 0x00);
-  delay(40);
-  
-  // 3. 输入十六进制字符
-  for (char* p = hex; *p; p++) {
-    char c = *p;
-    uint8_t modifier = MOD_LEFT_ALT;
-    uint8_t keycode = 0;
-    if (c >= '0' && c <= '9') {
-      switch(c) {
-        case '0': keycode = KEY_KP_0; break;
-        case '1': keycode = KEY_KP_1; break;
-        case '2': keycode = KEY_KP_2; break;
-        case '3': keycode = KEY_KP_3; break;
-        case '4': keycode = KEY_KP_4; break;
-        case '5': keycode = KEY_KP_5; break;
-        case '6': keycode = KEY_KP_6; break;
-        case '7': keycode = KEY_KP_7; break;
-        case '8': keycode = KEY_KP_8; break;
-        case '9': keycode = KEY_KP_9; break;
-      }
-    } else if (c >= 'A' && c <= 'F') {
-      modifier |= MOD_LEFT_SHIFT;
-      keycode = KEY_A + (c - 'A');
-    } else {
-      continue;
-    }
-    sendKeyboardReport(modifier, keycode);
-    sendKeyboardReport(modifier, 0x00);
-    delay(30);
-  }
-  
-  // 4. 释放左 Alt
-  sendKeyboardReport(0, 0x00);
-  delay(60);
-}
-
-// ========== 中文输入 - 方案二：区位码输入法 ==========
-// 区位码格式：每个汉字对应4位十进制数（区码+位码）
-// 例如："好" = 2651, "中" = 5448
-void sendUnicodeChar_LocationCode(uint32_t codepoint) {
-  // 将 Unicode 码点转换为区位码
-  // GB2312 区位码计算公式：区码 = (unicode - 0x4E00) / 94 + 16, 位码 = (unicode - 0x4E00) % 94 + 1
-  // 注意：此映射仅适用于 GB2312 汉字集
-  if (codepoint < 0x4E00 || codepoint > 0x9FA5) {
-    // 超出 GB2312 范围，回退到十六进制方案
-    sendUnicodeChar_Hex(codepoint);
-    return;
-  }
-  
-  uint16_t offset = codepoint - 0x4E00;
-  uint8_t qu = offset / 94 + 16;    // 区码
-  uint8_t wei = offset % 94 + 1;    // 位码
-  
-  // 区位码需要发送4位数字（区码和位码各2位）
-  char locCode[5];
-  sprintf(locCode, "%02d%02d", qu, wei);
-  
-  // 按区位码方式输入：需要切换输入法到区位模式
-  // 先发送 Ctrl+Shift 切换输入法（具体热键根据系统设置）
-  // 发送 Ctrl+Shift 组合键
-  sendKeyboardReport(MOD_LEFT_CTRL, 0x00);
-  sendKeyboardReport(MOD_LEFT_CTRL, KEY_LEFT_BRACKET); // 或 KEY_A? 实际需要根据系统
-  sendKeyboardReport(MOD_LEFT_CTRL, 0x00);
-  sendKeyboardReport(0x00, 0x00);
-  delay(100);
-  
-  // 输入区位码数字
-  for (char* p = locCode; *p; p++) {
-    uint8_t keycode = KEY_1 + (*p - '1');
-    if (*p == '0') keycode = KEY_0;
-    sendSingleKey(0x00, keycode);
-    delay(30);
-  }
-  
-  // 按 Enter 确认输入
-  sendSingleKey(0x00, KEY_ENTER);
-  delay(100);
-}
-
-// ========== 中文输入 - 方案三：剪贴板粘贴（最稳定） ==========
-// 此方案通过模拟 Ctrl+V 来粘贴剪贴板中的文本
-// 注意：需要先将文本放入系统剪贴板，此处仅模拟粘贴操作
-// 由于 ESP8266 无法直接操作系统剪贴板，此方案需要配合 PC 端辅助程序
-// 或者发送 Alt+Space+E+P 等快捷键来打开粘贴板？实际上最简单的是：
-// 1. 先发送 Ctrl+C 复制选中的文本
-// 2. 再发送 Ctrl+V 粘贴
-// 但如果是自己输入的文本，可以先通过其他方式（如网页）将文本存入剪贴板
-void sendTextByPaste() {
-  // 模拟 Ctrl+V 粘贴
-  sendKeyboardReport(MOD_LEFT_CTRL, KEY_V);
-  sendKeyboardReport(0x00, 0x00);
-  delay(50);
-}
-
 // ========== 发送文本主函数 ==========
 void sendText(const String& text) {
   if (chineseInputMethod == 0) {
-    // 仅ASCII模式：忽略中文
     for (size_t i = 0; i < text.length(); i++) {
       char ch = text[i];
-      if (ch >= 0x20 && ch <= 0x7E) {
-        sendChar(ch);
-      } else if (ch == '\n') {
-        sendChar('\n');
-      }
-      delay(15);
+      if (ch >= 0x20 && ch <= 0x7E) sendChar(ch);
+      else if (ch == '\n') sendChar('\n');
+      delay(20);
     }
     return;
   }
   
-  // 中文模式：逐字符处理
   for (size_t i = 0; i < text.length(); i++) {
     char ch = text[i];
     if (ch & 0x80) {
@@ -379,19 +344,11 @@ void sendText(const String& text) {
         if ((next & 0xC0) != 0x80) break;
         codepoint = (codepoint << 6) | (next & 0x3F);
       }
-      
-      // 根据选择的方法发送中文
       if (chineseInputMethod == 1) {
         sendUnicodeChar_Hex(codepoint);
-      } else if (chineseInputMethod == 2) {
-        sendUnicodeChar_LocationCode(codepoint);
       } else if (chineseInputMethod == 3) {
-        // 剪贴板粘贴方案：将所有中文先存储，最后一次性粘贴
-        // 这里简化处理，实际需要配合 PC 端程序
-        // 暂时回退到十六进制方案
-        sendUnicodeChar_Hex(codepoint);
+        sendUnicodeChar_Hex(codepoint);  // fallback
       }
-      
       i += bytes - 1;
     } else {
       sendChar(ch);
@@ -400,9 +357,7 @@ void sendText(const String& text) {
   }
 }
 
-// ========== 网页（略，与之前相同） ==========
-// 为了节省篇幅，此处省略网页内容
-// 实际使用时请将之前完整的网页代码放入此处
+// ========== 网页内容（传统字符串拼接，避免原始字符串字面量问题） ==========
 const char index_html[] PROGMEM = 
 "<!DOCTYPE html>\n"
 "<html>\n"
@@ -437,6 +392,8 @@ const char index_html[] PROGMEM =
 ".btn-warning { background: #ff9800; }\n"
 "textarea { width: 100%; padding: 10px; border-radius: 10px; border: none; font-size: 1rem; margin-top: 10px; }\n"
 ".status { text-align: center; margin-top: 15px; color: #ddd; font-size: 0.9rem; }\n"
+".select-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }\n"
+".select-row label { color: white; }\n"
 "@media (max-width:700px) { .key { padding: 8px 10px; min-width: 40px; } .key-space { min-width: 120px; } .touchpad-area { height: 200px; } }\n"
 "</style>\n"
 "</head>\n"
@@ -501,9 +458,17 @@ const char index_html[] PROGMEM =
 "</div>\n"
 "</div>\n"
 "<div id=\"text\" class=\"tab-content\">\n"
+"<div class=\"select-row\">\n"
+"<label>中文输入法：</label>\n"
+"<select id=\"imeSelect\">\n"
+"<option value=\"1\">Alt+十六进制 (需注册表 EnableHexNumpad)</option>\n"
+"<option value=\"3\">剪贴板粘贴 (自动复制+Ctrl+V)</option>\n"
+"</select>\n"
+"<button class=\"btn\" id=\"applyImeBtn\">应用</button>\n"
+"</div>\n"
 "<textarea id=\"textInput\" rows=\"4\" placeholder=\"输入文本（支持中文），点击发送...\"></textarea>\n"
 "<button class=\"btn\" id=\"sendTextBtn\">发送文本</button>\n"
-"<div class=\"status\">※ 中文输入方案：剪贴板粘贴（最稳定）</div>\n"
+"<div class=\"status\" id=\"textStatus\"></div>\n"
 "</div>\n"
 "</div>\n"
 "<script>\n"
@@ -514,6 +479,25 @@ const char index_html[] PROGMEM =
 "let lastX = 0, lastY = 0;\n"
 "let sensitivity = 1.5;\n"
 "let leftLockActive = false;\n"
+"let currentIme = 1;\n"
+"\n"
+"async function loadConfig() {\n"
+"  try {\n"
+"    let resp = await fetch('/config');\n"
+"    let data = await resp.json();\n"
+"    currentIme = data.ime;\n"
+"    document.getElementById('imeSelect').value = currentIme;\n"
+"  } catch(e) {}\n"
+"}\n"
+"loadConfig();\n"
+"\n"
+"document.getElementById('applyImeBtn').onclick = async () => {\n"
+"  let newIme = parseInt(document.getElementById('imeSelect').value);\n"
+"  await fetch(`/set_ime?ime=${newIme}`);\n"
+"  currentIme = newIme;\n"
+"  document.getElementById('textStatus').innerText = `已切换到${newIme===1?'Alt+十六进制':'剪贴板粘贴'}模式`;\n"
+"  setTimeout(()=>{document.getElementById('textStatus').innerText='';},2000);\n"
+"};\n"
 "\n"
 "document.querySelectorAll('.tab-btn').forEach(btn => {\n"
 "  btn.onclick = () => {\n"
@@ -651,8 +635,21 @@ const char index_html[] PROGMEM =
 "document.getElementById('sendTextBtn').onclick = async () => {\n"
 "  let text = document.getElementById('textInput').value;\n"
 "  if (!text) return;\n"
-"  let resp = await fetch('/text', { method:'POST', headers:{'Content-Type':'text/plain'}, body:text });\n"
-"  alert(resp.ok ? '文本发送完成' : '发送失败');\n"
+"  if (currentIme === 1) {\n"
+"    let resp = await fetch('/text', { method:'POST', headers:{'Content-Type':'text/plain'}, body:text });\n"
+"    if (resp.ok) document.getElementById('textStatus').innerText = '发送完成';\n"
+"    else document.getElementById('textStatus').innerText = '发送失败';\n"
+"  } else if (currentIme === 3) {\n"
+"    try {\n"
+"      await navigator.clipboard.writeText(text);\n"
+"      let resp = await fetch('/paste');\n"
+"      if (resp.ok) document.getElementById('textStatus').innerText = '已粘贴 (请确保焦点在输入框)';\n"
+"      else document.getElementById('textStatus').innerText = '粘贴指令失败';\n"
+"    } catch(e) {\n"
+"      document.getElementById('textStatus').innerText = '复制到剪贴板失败，请手动复制';\n"
+"    }\n"
+"  }\n"
+"  setTimeout(()=>{document.getElementById('textStatus').innerText='';},2000);\n"
 "};\n"
 "\n"
 "setResolution();\n"
@@ -749,20 +746,40 @@ void handleText() {
   server.send(200, "text/plain", "OK");
 }
 
+void handlePaste() {
+  sendKeyboardReport(MOD_LEFT_CTRL, KEY_V);
+  delay(20);
+  sendKeyboardReport(0x00, 0x00);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleGetConfig() {
+  String json = "{\"ime\":" + String(chineseInputMethod) + "}";
+  server.send(200, "application/json", json);
+}
+
+void handleSetIme() {
+  if (server.hasArg("ime")) {
+    int ime = server.arg("ime").toInt();
+    if (ime == 1 || ime == 3) {
+      chineseInputMethod = ime;
+      server.send(200, "text/plain", "OK");
+    } else {
+      server.send(400, "text/plain", "Invalid ime");
+    }
+  } else {
+    server.send(400, "text/plain", "Missing ime");
+  }
+}
+
 void handleNotFound() { server.send(404, "text/plain", "404"); }
 
 void setup() {
-  // ========== 选择中文输入方案 ==========
-  // 0: 禁用中文（仅ASCII）
-  // 1: Windows Alt+十六进制（需注册表 EnableHexNumpad）
-  // 2: 区位码输入法（兼容性好）
-  // 3: 剪贴板粘贴（最稳定，推荐）
-  chineseInputMethod = 3;  // 默认使用剪贴板粘贴方案
-  
   CH9329_SERIAL.begin(9600);
   delay(200);
   WiFi.mode(WIFI_AP);
   WiFi.softAP(ap_ssid, ap_password);
+  
   server.on("/", handleRoot);
   server.on("/key", handleKey);
   server.on("/special", handleSpecial);
@@ -773,6 +790,9 @@ void setup() {
   server.on("/mouse_click", handleMouseClick);
   server.on("/set_res", handleSetRes);
   server.on("/text", HTTP_POST, handleText);
+  server.on("/paste", handlePaste);
+  server.on("/config", handleGetConfig);
+  server.on("/set_ime", handleSetIme);
   server.onNotFound(handleNotFound);
   server.begin();
 }
