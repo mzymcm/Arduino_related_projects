@@ -1,0 +1,1 @@
+https://github.com/atomic14/esp32-s3-pinouts
