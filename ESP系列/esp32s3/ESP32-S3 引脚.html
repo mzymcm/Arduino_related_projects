@@ -1,0 +1,986 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=gb2312">
+<title>ESP32-S3 引脚</title>
+</head>
+
+<body>
+
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="11689275" _msthash="277" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	ESP32-S3 引脚</h1>
+	<a id="user-content-esp32-s3-pinouts" class="anchor" aria-label="永久链接：ESP32-S3 引脚" _mstaria-label="557843" _msthash="278" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 1; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#esp32-s3-pinouts"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="180050936" _msthash="279" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+我一直用这个<a rel="nofollow" _istranslated="1" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://randomnerdtutorials.com/esp32-pinout-reference-gpios/">Random 
+Nerds页面</a>作为ESP32引脚安全使用的参考。</p>
+<p dir="auto" _msttexthash="200535478" _msthash="280" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+但我没见过类似的ESP32-S3版本——所以我觉得我应该做一个！</p>
+<p dir="auto" _msttexthash="257197902" _msthash="281" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+大部分信息取自<a rel="nofollow" _istranslated="1" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf">ESP32-S3-WROOM数据手册</a>，另有<a rel="nofollow" _istranslated="1" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf">ESP32-S3数据手册</a>的补充信息。</p>
+<p dir="auto" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+<a target="_blank" rel="noopener noreferrer" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts/blob/main/esp32.webp">
+<img src="https://github.com/atomic14/esp32-s3-pinouts/raw/main/esp32.webp" alt="ESP32-S3 WROOM 引脚输出" _mstalt="336115" _msthash="282" style="box-sizing: content-box; max-width: 100%; border-style: none"></a></p>
+<p dir="auto" _msttexthash="121991753" _msthash="283" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+你可以<a _istranslated="1" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts/blob/main/esp32.pdf">在这里</a>下载这张图片的高分辨率PDF版本。</p>
+<p dir="auto" _msttexthash="976897220" _msthash="284" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+上面的图片是一个带有引脚标记的WROOM模块。加粗表示每个引脚的默认行为。我省略了一些比较晦涩的引脚名称，但你可以在数据手册中找到完整的列表。</p>
+<p dir="auto" _msttexthash="508984255" _msthash="285" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+ESP32-S3 灵活性更大，所以大多数引脚都能用于任何外设。不过，仍然有一些别针存在一些奇怪的行为。</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	<span _msttexthash="6908811" _msthash="286" style="box-sizing: border-box">
+	绑针</span></h1>
+	<a id="user-content-strapping-pins" class="anchor" aria-label="永久链接：绑带销" _mstaria-label="554658" _msthash="287" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#strapping-pins"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="92081041" _msthash="288" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+除非你别无选择，否则最好避免这些。</p>
+<markdown-accessiblity-table data-catalyst="" style="box-sizing: border-box; display: block; color: rgb(31, 35, 40); font-family: &quot;Mona Sans VF&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Noto Sans&quot;, Helvetica, Arial, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;">
+<table style="box-sizing: border-box; border-spacing: 0px; border-collapse: collapse; font-variant: tabular-nums; width: max-content; max-width: 100%; display: block; overflow: auto; margin-top: 0px; margin-bottom: 16px">
+	<thead style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<th _msttexthash="12077312" _msthash="289" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			徽章名称</th>
+			<th _msttexthash="5835466" _msthash="290" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			详情</th>
+		</tr>
+	</thead>
+	<tbody style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="40456" _msthash="291" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO0</td>
+			<td _msttexthash="83994820" _msthash="292" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			开机时按住这个键进入固件下载模式。</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="40885" _msthash="293" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO3</td>
+			<td _msttexthash="315537950" _msthash="294" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			结合eFuse控制JTAG引脚的默认行为。除非你在玩电子保险丝，否则安全使用。</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="49296" _msthash="295" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO45</td>
+			<td _msttexthash="34366787" _msthash="296" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			VDD_SPI——最好别连接</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="49452" _msthash="297" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO46</td>
+			<td _msttexthash="387760399" _msthash="298" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ROM消息打印——最好也断开连接。会导致固件下载出现问题（见下方启动模式控制表）</td>
+		</tr>
+</table>
+</markdown-accessiblity-table>
+<p dir="auto" _msttexthash="396564090" _msthash="299" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+ESP启动后，你可以用这些引脚作为输入或输出。但要注意上拉/向下的电阻（见下文）。</p>
+<p dir="auto" _msttexthash="197075281" _msthash="300" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+如果你想用它们作为输入，确保开机时不要与默认配置冲突。</p>
+<p dir="auto" _msttexthash="506351170" _msthash="301" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+例如，在代码中连接一个按钮并使用该按钮是安全的。但如果你在启动时长按按钮，它会进入固件下载模式。</p>
+<p dir="auto" _msttexthash="195368186" _msthash="302" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+如果你想用它们作为输出，就要注意默认的上拉或下拉电阻。</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h2 tabindex="-1" class="heading-element" dir="auto" _msttexthash="17435353" _msthash="303" style="box-sizing: border-box; font-size: 1.5em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	启动模式控制</h2>
+	<a id="user-content-boot-mode-control" class="anchor" aria-label="永久链接：启动模式控制" _mstaria-label="628940" _msthash="304" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 19.0938px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#boot-mode-control"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<markdown-accessiblity-table data-catalyst="" style="box-sizing: border-box; display: block; color: rgb(31, 35, 40); font-family: &quot;Mona Sans VF&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Noto Sans&quot;, Helvetica, Arial, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;">
+<table style="box-sizing: border-box; border-spacing: 0px; border-collapse: collapse; font-variant: tabular-nums; width: max-content; max-width: 100%; display: block; overflow: auto; margin-top: 0px; margin-bottom: 16px">
+	<thead style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<th _msttexthash="10504104" _msthash="305" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			启动模式</th>
+			<th _msttexthash="40456" _msthash="306" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO0</th>
+			<th _msttexthash="49452" _msthash="307" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO46</th>
+		</tr>
+	</thead>
+	<tbody style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="42146559" _msthash="308" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			SPI 启动（默认）</td>
+			<td _msttexthash="4459" _msthash="309" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			1</td>
+			<td _msttexthash="6355245" _msthash="310" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			任何值</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="10910588" _msthash="311" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			下载启动</td>
+			<td _msttexthash="4368" _msthash="312" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			0</td>
+			<td _msttexthash="4368" _msthash="313" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			0</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="11663236" _msthash="314" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			无效组合</td>
+			<td _msttexthash="4368" _msthash="315" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			0</td>
+			<td _msttexthash="4459" _msthash="316" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			1</td>
+		</tr>
+</table>
+</markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h2 tabindex="-1" class="heading-element" dir="auto" _msttexthash="34657714" _msthash="317" style="box-sizing: border-box; font-size: 1.5em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	绑带销拉/拉/下电阻</h2>
+	<a id="user-content-strapping-pin-pull-updown-resistors" class="anchor" aria-label="永久链接：绑带销拉/下拉电阻" _mstaria-label="1542060" _msthash="318" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 19.0938px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#strapping-pin-pull-updown-resistors"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<markdown-accessiblity-table data-catalyst="" style="box-sizing: border-box; display: block; color: rgb(31, 35, 40); font-family: &quot;Mona Sans VF&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Noto Sans&quot;, Helvetica, Arial, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;">
+<table style="box-sizing: border-box; border-spacing: 0px; border-collapse: collapse; font-variant: tabular-nums; width: max-content; max-width: 100%; display: block; overflow: auto; margin-top: 0px; margin-bottom: 16px">
+	<thead style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<th _msttexthash="6908811" _msthash="319" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			绑针</th>
+			<th _msttexthash="16011125" _msthash="320" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			默认配置</th>
+			<th _msttexthash="3983551" _msthash="321" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			位值</th>
+		</tr>
+	</thead>
+	<tbody style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="40456" _msthash="322" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO0</td>
+			<td _msttexthash="9442056" _msthash="323" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			引体向上</td>
+			<td _msttexthash="4459" _msthash="324" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			1</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="40885" _msthash="325" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO3</td>
+			<td _msttexthash="5499494" _msthash="326" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			漂浮</td>
+			<td _msttexthash="747201" _msthash="327" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			–</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="49296" _msthash="328" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO45</td>
+			<td _msttexthash="4448145" _msthash="329" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			下拉</td>
+			<td _msttexthash="4368" _msthash="330" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			0</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="49452" _msthash="331" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO46</td>
+			<td _msttexthash="4448145" _msthash="332" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			下拉</td>
+			<td _msttexthash="4368" _msthash="333" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			0</td>
+		</tr>
+</table>
+</markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="59823985" _msthash="334" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	I2S、I2C、SPI、UART、远程控制等......</h1>
+	<a id="user-content-i2s-i2c-spi-uart-remote-control-etc" class="anchor" aria-label="永久链接：I2S、I2C、SPI、UART、远程控制等......" _mstaria-label="1511783" _msthash="335" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#i2s-i2c-spi-uart-remote-control-etc"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="85653243" _msthash="336" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+这些设备可以使用ESP32-S3上的任何GPIO引脚。</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	<span _msttexthash="31765539" _msthash="337" style="box-sizing: border-box">
+	你需要小心的别针</span></h1>
+	<a id="user-content-pins-that-you-need-to-be-careful-with" class="anchor" aria-label="永久链接：你需要小心的针" _mstaria-label="1401361" _msthash="338" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#pins-that-you-need-to-be-careful-with"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="18557045" _msthash="339" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	USB数据针脚</h1>
+	<a id="user-content-usb-data-pins" class="anchor" aria-label="永久链接：USB 数据引脚" _mstaria-label="444184" _msthash="340" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#usb-data-pins"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="89417861" _msthash="341" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+GPIO19、GPIO20——这两个都用于USB连接。</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="44967" _msthash="342" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	PSRAM</h1>
+	<a id="user-content-psram" class="anchor" aria-label="永久链接：PSRAM" _mstaria-label="241982" _msthash="343" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#psram"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="305265103" _msthash="344" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+对于包含八进制PSRAM的模块（任何8MB PSRAM的模块），你<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600">绝对不能</strong>使用GPIO35、GPIO36或GPIO37。</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="8668868" _msthash="345" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	JTAG引脚</h1>
+	<a id="user-content-jtag-pins" class="anchor" aria-label="永久链接：JTAG 图钉" _mstaria-label="337870" _msthash="346" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#jtag-pins"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="10001979" _msthash="347" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+GPIO39、GPIO40、GPIO41、GPIO42</p>
+<p dir="auto" _msttexthash="727762191" _msthash="348" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+这些引脚的行为由eFuse与GPIO3结合决定。默认情况下，如果你还没烧坏任何电子保险丝，这些针脚是安全的*。JTAG将通过USB提供。</p>
+<p dir="auto" _msttexthash="470373930" _msthash="349" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+如果你想用这些针脚做JTAG，必须烧一些eFuse，并在启动时控制GPIO3。完整详情请参见数据手册第2.6.4节。</p>
+<p dir="auto" _msttexthash="89074518" _msthash="350" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+*部分JTAG引脚在启动时开始拉起：</p>
+<markdown-accessiblity-table data-catalyst="" style="box-sizing: border-box; display: block; color: rgb(31, 35, 40); font-family: &quot;Mona Sans VF&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Noto Sans&quot;, Helvetica, Arial, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;">
+<table style="box-sizing: border-box; border-spacing: 0px; border-collapse: collapse; font-variant: tabular-nums; width: max-content; max-width: 100%; display: block; overflow: auto; margin-top: 0px; margin-bottom: 16px">
+	<thead style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<th _msttexthash="8668868" _msthash="351" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			JTAG引脚</th>
+			<th _msttexthash="10910588" _msthash="352" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			下载启动</th>
+			<th _msttexthash="42146559" _msthash="353" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			SPI 启动（默认）</th>
+		</tr>
+	</thead>
+	<tbody style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="49777" _msthash="354" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO39</td>
+			<td _msttexthash="9442056" _msthash="355" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			引体向上</td>
+			<td _msttexthash="9448062" _msthash="356" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			引体向上*</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="48516" _msthash="357" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO40</td>
+			<td _msttexthash="9442056" _msthash="358" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			引体向上</td>
+			<td _msttexthash="5499494" _msthash="359" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			漂浮</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="48672" _msthash="360" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO41</td>
+			<td _msttexthash="5499494" _msthash="361" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			漂浮</td>
+			<td _msttexthash="5499494" _msthash="362" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			漂浮</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="48828" _msthash="363" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO42</td>
+			<td _msttexthash="5499494" _msthash="364" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			漂浮</td>
+			<td _msttexthash="5499494" _msthash="365" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			漂浮</td>
+		</tr>
+</table>
+</markdown-accessiblity-table>
+<p dir="auto" _msttexthash="793876876" _msthash="366" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+GPIO39 在启动时启动。通过烧毁EFUSE_DIS_PAD_JTAG（又称HARD_DIS_JTAG）<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600">永久禁用</strong>JTAG引脚来解决这个问题。JTAG仍可通过USB端口使用。</p>
+<p dir="auto" _msttexthash="228609459" _msthash="367" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+GPIO39和GPIO40在“下载启动模式”中也会被调出——无论eFuse状态如何。</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="8671572" _msthash="368" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	UART 引脚</h1>
+	<a id="user-content-uart-pins" class="anchor" aria-label="永久链接：UART 图钉" _mstaria-label="343434" _msthash="369" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#uart-pins"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="11169509" _msthash="370" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+GPIO43，GPIO44</p>
+<p dir="auto" _msttexthash="207598950" _msthash="371" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+这些默认是UART0，直到你的代码使用。它们都开启了上拉电阻。</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="10417121" _msthash="372" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	ADC销钉</h1>
+	<a id="user-content-adc-pins" class="anchor" aria-label="永久链接：ADC针脚" _mstaria-label="308841" _msthash="373" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#adc-pins"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="153961509" _msthash="374" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+ADC信道都固定在引脚上，如果你用WiFi，就不能用ADC Unit 2</p>
+<p dir="auto" _msttexthash="46241936" _msthash="375" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+ADC 单元1的引脚如下：</p>
+<markdown-accessiblity-table data-catalyst="" style="box-sizing: border-box; display: block; color: rgb(31, 35, 40); font-family: &quot;Mona Sans VF&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Noto Sans&quot;, Helvetica, Arial, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;">
+<table style="box-sizing: border-box; border-spacing: 0px; border-collapse: collapse; font-variant: tabular-nums; width: max-content; max-width: 100%; display: block; overflow: auto; margin-top: 0px; margin-bottom: 16px">
+	<thead style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<th _msttexthash="8039174" _msthash="376" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO编号</th>
+			<th _msttexthash="10381657" _msthash="377" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC频道</th>
+		</tr>
+	</thead>
+	<tbody style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="40599" _msthash="378" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO1</td>
+			<td _msttexthash="72137" _msthash="379" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC1_CH0</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="40742" _msthash="380" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO2</td>
+			<td _msttexthash="72319" _msthash="381" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC1_CH1</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="40885" _msthash="382" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO3</td>
+			<td _msttexthash="72501" _msthash="383" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC1_CH2</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="41028" _msthash="384" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO4</td>
+			<td _msttexthash="72683" _msthash="385" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC1_CH3</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="41171" _msthash="386" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO5</td>
+			<td _msttexthash="72865" _msthash="387" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC1_CH4</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="41314" _msthash="388" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO6</td>
+			<td _msttexthash="73047" _msthash="389" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC1_CH5</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="41457" _msthash="390" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO7</td>
+			<td _msttexthash="73229" _msthash="391" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC1_CH6</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td _msttexthash="41600" _msthash="392" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO8</td>
+			<td _msttexthash="73411" _msthash="393" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC1_CH7</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td _msttexthash="41743" _msthash="394" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO9</td>
+			<td _msttexthash="73593" _msthash="395" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			ADC1_CH8</td>
+		</tr>
+</table>
+</markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="7911267" _msthash="396" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	DAC引脚</h1>
+	<a id="user-content-dac-pins" class="anchor" aria-label="永久链接：DAC 引脚" _mstaria-label="308802" _msthash="397" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#dac-pins"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="141573289" _msthash="398" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+ESP32-S3 没有 DAC——你可以用 PWM 或 I2S PDM 模拟模拟输出。</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="11388325" _msthash="399" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	强化漏洞</h1>
+	<a id="user-content-power-up-glitches" class="anchor" aria-label="永久链接：强化漏洞" _mstaria-label="629369" _msthash="400" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#power-up-glitches"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="62820108" _msthash="401" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+以下的针在充能时会出现故障。</p>
+<p dir="auto" _msttexthash="253714955" _msthash="402" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+GPIO1、GPIO2、GPIO3、GPIO4、GPIO5、GPIO6、GPIO7、GPIO8、GPIO9、GPIO10、GPIO11、GPIO12、GPIO13、GPIO14、GPIO15、GPIO16、GPIO17：</p>
+<ul dir="auto" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; padding-left: 2em; background-color: rgb(255, 255, 255)">
+	<li _msttexthash="125124246" _msthash="403" style="box-sizing: border-box">
+	低级故障：引脚输出处于低电平状态，60微分。</li>
+</ul>
+<p dir="auto" _msttexthash="11086049" _msthash="404" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+GPIO18：</p>
+<ul dir="auto" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; padding-left: 2em; background-color: rgb(255, 255, 255)">
+	<li _msttexthash="125124246" _msthash="405" style="box-sizing: border-box">
+	低级故障：引脚输出处于低电平状态，60微分。</li>
+	<li _msttexthash="127019906" _msthash="406" style="box-sizing: border-box; margin-top: 0.25em">
+	高层故障：引脚在60微分的高电平输出状态下。</li>
+</ul>
+<p dir="auto" _msttexthash="28148120" _msthash="407" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+GPIO19，GPIO20：</p>
+<ul dir="auto" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; padding-left: 2em; background-color: rgb(255, 255, 255)">
+	<li _msttexthash="125124246" _msthash="408" style="box-sizing: border-box">
+	低级故障：引脚输出处于低电平状态，60微分。</li>
+	<li _msttexthash="156404352" _msthash="409" style="box-sizing: border-box; margin-top: 0.25em">
+	两个高级别故障：引脚在60微分的高水平输出状态下。</li>
+</ul>
+<p dir="auto" _msttexthash="14178814" _msthash="410" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+请参见<a rel="nofollow" _istranslated="1" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf">表</a>2-2</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="42110965" _msthash="411" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	关于强化漏洞的更多信息</h1>
+	<a id="user-content-more-about-power-up-glitches" class="anchor" aria-label="永久链接：更多关于强化漏洞的信息" _mstaria-label="1068977" _msthash="412" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#more-about-power-up-glitches"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="715852371" _msthash="413" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+如果你在运行“你的”软件时看到某些引脚出现了 Power Up 故障， 但在运行简单的Hello World时则不然，这可能是常见的错误：</p>
+<div class="highlight highlight-source-c notranslate position-relative overflow-auto" dir="auto" style="box-sizing: border-box; position: relative !important; overflow: auto !important; justify-content: space-between; display: flex; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-bottom: 16px; background-color: rgb(246, 248, 250)">
+	<pre style="box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13.6px; tab-size: 4; overflow-wrap: normal; color: rgb(31, 35, 40); border-radius: 6px; line-height: 1.45; overflow: auto; word-break: normal; min-height: 52px; margin-top: 0px; margin-bottom: 0px; padding: 16px; background-color: rgb(246, 248, 250)"><span class="pl-en" style="box-sizing: border-box; color: rgb(102, 57, 186)">gpio_reset_pin</span>(<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">RELAY1_SC</span>);
+<span class="pl-en" style="box-sizing: border-box; color: rgb(102, 57, 186)">gpio_set_direction</span>(<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">RELAY1_SC</span>, <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">GPIO_MODE_OUTPUT</span>);</pre>
+	<div class="zeroclipboard-container" style="box-sizing: border-box; animation: auto ease 0s 1 normal none running none; display: block">
+		<clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="gpio_reset_pin(RELAY1_SC);
+gpio_set_direction(RELAY1_SC, GPIO_MODE_OUTPUT);" tabindex="0" role="button" style="box-sizing: border-box; padding: 0px !important; font-size: 14px; font-weight: 500; white-space: nowrap; vertical-align: middle; cursor: pointer; user-select: none; appearance: none; border: 0px; border-radius: 6px; line-height: 20px; display: flex !important; position: relative; color: rgb(9, 105, 218); background-color: rgba(0, 0, 0, 0); box-shadow: none; transition: color 80ms cubic-bezier(0.33, 1, 0.68, 1), background-color 80ms cubic-bezier(0.33, 1, 0.68, 1), box-shadow 80ms cubic-bezier(0.33, 1, 0.68, 1), border-color 80ms cubic-bezier(0.33, 1, 0.68, 1); justify-content: center !important; align-items: center !important; margin: 8px !important; width: 28px; height: 28px;"><svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon"></svg></clipboard-copy>
+	</div>
+</div>
+<p dir="auto" _msttexthash="47786843" _msthash="414" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+该句法可见，例如：<a _istranslated="1" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://github.com/espressif/esp-idf/blob/03414a15508036c8fc0f51642aed7a264e9527df/examples/get-started/blink/main/blink_example_main.c#L82">blink_example_main.c</a></p>
+<p dir="auto" _msttexthash="51639406" _msthash="415" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+相反，使用以下语法：</p>
+<div class="highlight highlight-source-c notranslate position-relative overflow-auto" dir="auto" style="box-sizing: border-box; position: relative !important; overflow: auto !important; justify-content: space-between; display: flex; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-bottom: 16px; background-color: rgb(246, 248, 250)">
+	<pre style="box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13.6px; tab-size: 4; overflow-wrap: normal; color: rgb(31, 35, 40); border-radius: 6px; line-height: 1.45; overflow: auto; word-break: normal; min-height: 52px; margin-top: 0px; margin-bottom: 0px; padding: 16px; background-color: rgb(246, 248, 250)"><span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">//zero-initialize the config structure.</span>
+<span class="pl-smi" style="box-sizing: border-box; color: rgb(31, 35, 40)">gpio_config_t</span> <span class="pl-s1" style="box-sizing: border-box">io_conf</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">=</span> {};
+<span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">//disable interrupt</span>
+<span class="pl-s1" style="box-sizing: border-box">io_conf</span>.<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">intr_type</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">=</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">GPIO_INTR_DISABLE</span>;
+<span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">//set as output mode</span>
+<span class="pl-s1" style="box-sizing: border-box">io_conf</span>.<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">mode</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">=</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">GPIO_MODE_OUTPUT</span>;
+<span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">//bit mask of the pins that you want to set,e.g.GPIO18/19</span>
+<span class="pl-s1" style="box-sizing: border-box">io_conf</span>.<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">pin_bit_mask</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">=</span> (<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">1ULL</span> &lt;&lt; <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">RELAY1_SC</span>);
+<span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">//disable pull-down mode</span>
+<span class="pl-s1" style="box-sizing: border-box">io_conf</span>.<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">pull_down_en</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">=</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">0</span>;
+<span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">//disable pull-up mode</span>
+<span class="pl-s1" style="box-sizing: border-box">io_conf</span>.<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">pull_up_en</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">=</span> <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">0</span>;
+<span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">//configure GPIO with the given settings</span>
+<span class="pl-en" style="box-sizing: border-box; color: rgb(102, 57, 186)">gpio_config</span>(<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">&amp;</span><span class="pl-s1" style="box-sizing: border-box">io_conf</span>);</pre>
+	<div class="zeroclipboard-container" style="box-sizing: border-box; animation: auto ease 0s 1 normal none running none; display: block">
+		<clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="//zero-initialize the config structure.
+gpio_config_t io_conf = {};
+//disable interrupt
+io_conf.intr_type = GPIO_INTR_DISABLE;
+//set as output mode
+io_conf.mode = GPIO_MODE_OUTPUT;
+//bit mask of the pins that you want to set,e.g.GPIO18/19
+io_conf.pin_bit_mask = (1ULL &lt;&lt; RELAY1_SC);
+//disable pull-down mode
+io_conf.pull_down_en = 0;
+//disable pull-up mode
+io_conf.pull_up_en = 0;
+//configure GPIO with the given settings
+gpio_config(&amp;io_conf);" tabindex="0" role="button" style="box-sizing: border-box; padding: 0px !important; font-size: 14px; font-weight: 500; white-space: nowrap; vertical-align: middle; cursor: pointer; user-select: none; appearance: none; border: 0px; border-radius: 6px; line-height: 20px; display: flex !important; position: relative; color: rgb(9, 105, 218); background-color: rgba(0, 0, 0, 0); box-shadow: none; transition: color 80ms cubic-bezier(0.33, 1, 0.68, 1), background-color 80ms cubic-bezier(0.33, 1, 0.68, 1), box-shadow 80ms cubic-bezier(0.33, 1, 0.68, 1), border-color 80ms cubic-bezier(0.33, 1, 0.68, 1); justify-content: center !important; align-items: center !important; margin: 8px !important; width: 28px; height: 28px;"><svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon"></svg></clipboard-copy>
+	</div>
+</div>
+<p dir="auto" _msttexthash="66616927" _msthash="416" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+该语法可在此找到，例如：<a _istranslated="1" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://github.com/espressif/esp-idf/blob/03414a15508036c8fc0f51642aed7a264e9527df/examples/peripherals/gpio/generic_gpio/main/gpio_example_main.c#L93">gpio_example_main.c</a></p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="54760303" _msthash="417" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	关于强化漏洞的进一步考虑</h1>
+	<a id="user-content-further-considerations-about-power-up-glitches" class="anchor" aria-label="永久链接：关于强化道具漏洞的进一步思考" _mstaria-label="2213380" _msthash="418" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#further-considerations-about-power-up-glitches"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="263354364" _msthash="419" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+在某些情况下，引脚默认连接到+3.3V或+1.8V的电源域。 例如GPIO20（D+）或GPIO48。</p>
+<p dir="auto" _msttexthash="116287067" _msthash="420" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+你可以在Bootloader的早期阶段关闭它们：</p>
+<p dir="auto" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+<a _msttexthash="8734479" _msthash="421" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://github.com/espressif/esp-idf/tree/master/examples/custom_bootloader/bootloader_hooks">
+见此处</a></p>
+<p dir="auto" _msttexthash="37585821" _msthash="422" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+例如，以下代码：</p>
+<div class="highlight highlight-source-c notranslate position-relative overflow-auto" dir="auto" style="box-sizing: border-box; position: relative !important; overflow: auto !important; justify-content: space-between; display: flex; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-bottom: 16px; background-color: rgb(246, 248, 250)">
+	<pre style="box-sizing: border-box; font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 13.6px; tab-size: 4; overflow-wrap: normal; color: rgb(31, 35, 40); border-radius: 6px; line-height: 1.45; overflow: auto; word-break: normal; min-height: 52px; margin-top: 0px; margin-bottom: 0px; padding: 16px; background-color: rgb(246, 248, 250)"><span class="pl-smi" style="box-sizing: border-box; color: rgb(31, 35, 40)">void</span> <span class="pl-en" style="box-sizing: border-box; color: rgb(102, 57, 186)">bootloader_before_init</span>(<span class="pl-smi" style="box-sizing: border-box; color: rgb(31, 35, 40)">void</span>) {
+    <span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">/* Keep in my mind that a lot of functions cannot be called from here</span>
+<span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">     * as system initialization has not been performed yet, including</span>
+<span class="pl-c" style="box-sizing: border-box; color: rgb(89, 99, 110)">     * BSS, SPI flash, or memory protection. */</span>
+    <span class="pl-en" style="box-sizing: border-box; color: rgb(102, 57, 186)">ESP_LOGI</span>(<span class="pl-s" style="box-sizing: border-box; color: rgb(10, 48, 105)">&quot;HOOK&quot;</span>, <span class="pl-s" style="box-sizing: border-box; color: rgb(10, 48, 105)">&quot;This hook is called BEFORE bootloader initialization&quot;</span>);
+    <span class="pl-en" style="box-sizing: border-box; color: rgb(102, 57, 186)">gpio_hal_iomux_func_sel</span>(<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">GPIO_PIN_MUX_REG</span>[<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">GPIO_NUM_20</span>], <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">PIN_FUNC_GPIO</span>);
+    <span class="pl-en" style="box-sizing: border-box; color: rgb(102, 57, 186)">esp_rom_gpio_pad_select_gpio</span>(<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">GPIO_NUM_48</span>);
+    <span class="pl-en" style="box-sizing: border-box; color: rgb(102, 57, 186)">gpio_ll_output_enable</span> (<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">&amp;GPIO</span>, <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">GPIO_NUM_48</span>);
+    <span class="pl-en" style="box-sizing: border-box; color: rgb(102, 57, 186)">gpio_ll_set_level</span> (<span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">&amp;GPIO</span>, <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">GPIO_NUM_48</span>, <span class="pl-c1" style="box-sizing: border-box; color: rgb(5, 80, 174)">0</span>);
+}</pre>
+	<div class="zeroclipboard-container" style="box-sizing: border-box; animation: auto ease 0s 1 normal none running none; display: block">
+		<clipboard-copy aria-label="Copy" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w" value="void bootloader_before_init(void) {
+    /* Keep in my mind that a lot of functions cannot be called from here
+     * as system initialization has not been performed yet, including
+     * BSS, SPI flash, or memory protection. */
+    ESP_LOGI(&quot;HOOK&quot;, &quot;This hook is called BEFORE bootloader initialization&quot;);
+    gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[GPIO_NUM_20], PIN_FUNC_GPIO);
+    esp_rom_gpio_pad_select_gpio(GPIO_NUM_48);
+    gpio_ll_output_enable (&amp;GPIO, GPIO_NUM_48);
+    gpio_ll_set_level (&amp;GPIO, GPIO_NUM_48, 0);
+}" tabindex="0" role="button" style="box-sizing: border-box; padding: 0px !important; font-size: 14px; font-weight: 500; white-space: nowrap; vertical-align: middle; cursor: pointer; user-select: none; appearance: none; border: 0px; border-radius: 6px; line-height: 20px; display: flex !important; position: relative; color: rgb(9, 105, 218); background-color: rgba(0, 0, 0, 0); box-shadow: none; transition: color 80ms cubic-bezier(0.33, 1, 0.68, 1), background-color 80ms cubic-bezier(0.33, 1, 0.68, 1), box-shadow 80ms cubic-bezier(0.33, 1, 0.68, 1), border-color 80ms cubic-bezier(0.33, 1, 0.68, 1); justify-content: center !important; align-items: center !important; margin: 8px !important; width: 28px; height: 28px;"><svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon"></svg></clipboard-copy>
+	</div>
+</div>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="12772253" _msthash="423" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	资料来源</h1>
+	<a id="user-content-source-material" class="anchor" aria-label="永久链接：原始资料" _mstaria-label="587522" _msthash="424" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#source-material"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<ul dir="auto" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; padding-left: 2em; background-color: rgb(255, 255, 255)">
+	<li style="box-sizing: border-box">
+	<a rel="nofollow" _msttexthash="24981580" _msthash="425" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf">
+	ESP32-S3-WROOM 数据表</a></li>
+	<li style="box-sizing: border-box; margin-top: 0.25em">
+	<a rel="nofollow" _msttexthash="20872579" _msthash="426" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf">
+	ESP32-S3 数据手册</a></li>
+	<li style="box-sizing: border-box; margin-top: 0.25em">
+	<a rel="nofollow" _msttexthash="34529937" _msthash="427" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://www.espressif.com/sites/default/files/documentation/esp32-s3_technical_reference_manual_en.pdf">
+	ESP32-S3 技术参考手册</a></li>
+</ul>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="23468549" _msthash="428" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	多模块的Excel版本</h1>
+	<a id="user-content-excel-version-with-multiple-modules" class="anchor" aria-label="永久链接：包含多模块的Excel版本" _mstaria-label="1495819" _msthash="429" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#excel-version-with-multiple-modules"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<p dir="auto" _msttexthash="343613868" _msthash="430" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; background-color: rgb(255, 255, 255)">
+这里有一份由Mark Nowell提供的非常<a _istranslated="1" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; text-underline-offset: 0.2rem; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts/blob/main/ESP32-Pin-Allocation.xlsx">实用的电子表格</a>，列出了ESP32-S3模块及其引脚排列。</p>
+<div class="markdown-heading" dir="auto" style="box-sizing: border-box; position: relative; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; background-color: rgb(255, 255, 255)">
+	<h1 tabindex="-1" class="heading-element" dir="auto" _msttexthash="10776714" _msthash="431" style="box-sizing: border-box; font-size: 2em; font-weight: 600; line-height: 1.25; border-bottom: 0.7) solid rgba(209; margin-left: 0px; margin-right: 0px; margin-top: 24px; margin-bottom: 16px; padding-bottom: 0.3em">
+	完整GPIO表</h1>
+	<a id="user-content-full-gpio-table" class="anchor" aria-label="永久链接：完整GPIO表" _mstaria-label="504920" _msthash="432" style="box-sizing: border-box; color: rgb(9, 105, 218); text-decoration: underline; float: left; line-height: 1; border-radius: 6px; opacity: 0; justify-content: center; align-items: center; width: 28px; height: 28px; display: flex; position: absolute; top: 25.2969px; left: -28px; transform: translateY(calc(-50% - 0.3rem)); text-underline-offset: 0.2rem; margin: auto; padding-right: 4px; background-color: rgba(0, 0, 0, 0)" href="https://github.com/atomic14/esp32-s3-pinouts#full-gpio-table"><svg class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg>
+	</a></div>
+<ul dir="auto" style="box-sizing: border-box; color: rgb(31, 35, 40); font-family: 'Mona Sans VF', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji'; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; margin-top: 0px; margin-bottom: 16px; padding-left: 2em; background-color: rgb(255, 255, 255)">
+	<li _msttexthash="7020468" _msthash="433" style="box-sizing: border-box">I - 
+	输入</li>
+	<li _msttexthash="7040384" _msthash="434" style="box-sizing: border-box; margin-top: 0.25em">
+	O - 输出</li>
+	<li _msttexthash="44889091" _msthash="435" style="box-sizing: border-box; margin-top: 0.25em">
+	T - 三态（高阻抗）</li>
+</ul>
+<markdown-accessiblity-table data-catalyst="" style="box-sizing: border-box; display: block; color: rgb(31, 35, 40); font-family: &quot;Mona Sans VF&quot;, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, &quot;Noto Sans&quot;, Helvetica, Arial, sans-serif, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;; font-size: 16px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: start; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(255, 255, 255); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;">
+<table style="box-sizing: border-box; border-spacing: 0px; border-collapse: collapse; font-variant: tabular-nums; width: max-content; max-width: 100%; display: block; overflow: auto; margin-top: 0px; margin-bottom: 16px">
+	<thead style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<th align="center" _msttexthash="12077312" _msthash="436" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			徽章名称</th>
+			<th align="center" _msttexthash="5332938" _msthash="437" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			密码</th>
+			<th align="center" _msttexthash="5230641" _msthash="438" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			类型</th>
+			<th align="center" _msttexthash="6157333" _msthash="439" style="box-sizing: border-box; font-weight: 600; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			描述</th>
+		</tr>
+	</thead>
+	<tbody style="box-sizing: border-box">
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="22529" _msthash="440" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GND</td>
+			<td align="center" _msttexthash="21359" _msthash="441" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			1,40</td>
+			<td align="center" _msttexthash="7280" _msthash="442" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			P</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _msttexthash="22529" _msthash="443" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			GND</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="51490855" _msthash="444" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			教育与发展计划（EPAD）</td>
+			<td align="center" _msttexthash="9828" _msthash="445" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			41</td>
+			<td align="center" _msttexthash="7280" _msthash="446" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			P</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _msttexthash="22529" _msthash="447" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			GND</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="2459288" _msthash="448" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			3对3</td>
+			<td align="center" _msttexthash="4550" _msthash="449" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			2</td>
+			<td align="center" _msttexthash="7280" _msthash="450" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			P</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _msttexthash="5674071" _msthash="451" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			电源</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="5753475" _msthash="452" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			英文</td>
+			<td align="center" _msttexthash="4641" _msthash="453" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			3</td>
+			<td align="center" _msttexthash="6643" _msthash="454" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I</td>
+			<td align="center" _msttexthash="299475995" _msthash="455" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			高：开启，启用芯片。低电平：关闭，芯片断电。注意：不要让EN针悬浮。</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="40456" _msthash="456" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO0</td>
+			<td align="center" _msttexthash="10270" _msthash="457" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			27</td>
+			<td align="center" _msttexthash="38896" _msthash="458" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="13761917" _msthash="459" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			RTC_GPIO0，GPIO0</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="40599" _msthash="460" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO1</td>
+			<td align="center" _msttexthash="10569" _msthash="461" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			39</td>
+			<td align="center" _msttexthash="38896" _msthash="462" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="73245445" _msthash="463" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			RTC_GPIO1，GPIO1</strong>，触控1，ADC1_CH0</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="40742" _msthash="464" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO2</td>
+			<td align="center" _msttexthash="10465" _msthash="465" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			38</td>
+			<td align="center" _msttexthash="38896" _msthash="466" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="11260730" _msthash="467" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO2、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO2</strong>、TOUCH2、ADC1_CH1</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="40885" _msthash="468" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO3</td>
+			<td align="center" _msttexthash="9971" _msthash="469" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			15</td>
+			<td align="center" _msttexthash="38896" _msthash="470" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="11262043" _msthash="471" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO3、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO3</strong>、TOUCH3、ADC1_CH2</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="41028" _msthash="472" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO4</td>
+			<td align="center" _msttexthash="4732" _msthash="473" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			4</td>
+			<td align="center" _msttexthash="38896" _msthash="474" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="11263356" _msthash="475" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO4、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO4</strong>、TOUCH4、ADC1_CH3</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="41171" _msthash="476" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO5</td>
+			<td align="center" _msttexthash="4823" _msthash="477" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			5</td>
+			<td align="center" _msttexthash="38896" _msthash="478" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="11264669" _msthash="479" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO5、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO5</strong>、TOUCH5、ADC1_CH4</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="41314" _msthash="480" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO6</td>
+			<td align="center" _msttexthash="4914" _msthash="481" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			6</td>
+			<td align="center" _msttexthash="38896" _msthash="482" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="11265982" _msthash="483" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO6、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO6</strong>、TOUCH6、ADC1_CH5</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="41457" _msthash="484" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO7</td>
+			<td align="center" _msttexthash="5005" _msthash="485" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			7</td>
+			<td align="center" _msttexthash="38896" _msthash="486" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="57432908" _msthash="487" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			RTC_GPIO7，GPIO7，TOUCH7，ADC1_CH6</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="41600" _msthash="488" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO8</td>
+			<td align="center" _msttexthash="9659" _msthash="489" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			12</td>
+			<td align="center" _msttexthash="38896" _msthash="490" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="17711395" _msthash="491" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO8、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO8</strong>、TOUCH8、ADC1_CH7、SUBSPICS1</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="41743" _msthash="492" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO9</td>
+			<td align="center" _msttexthash="10179" _msthash="493" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			17</td>
+			<td align="center" _msttexthash="38896" _msthash="494" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="25161591" _msthash="495" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO9、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO9</strong>、TOUCH9、ADC1_CH8、FSPIHD、SUBSPIHD</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="48087" _msthash="496" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO10</td>
+			<td align="center" _msttexthash="10283" _msthash="497" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			18</td>
+			<td align="center" _msttexthash="38896" _msthash="498" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="36967931" _msthash="499" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO10、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO10</strong>、TOUCH10、ADC1_CH9、FSPICS0、FSPIIO4、SUBSPICS0</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="48243" _msthash="500" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO11</td>
+			<td align="center" _msttexthash="10387" _msthash="501" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			19</td>
+			<td align="center" _msttexthash="38896" _msthash="502" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="36108501" _msthash="503" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO11、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO11</strong>、TOUCH11、ADC2_CH0、FSPID、FSPIIO5、SUBSPID</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="48399" _msthash="504" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO12</td>
+			<td align="center" _msttexthash="9542" _msthash="505" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			20</td>
+			<td align="center" _msttexthash="38896" _msthash="506" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="36997337" _msthash="507" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO12、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO12</strong>、TOUCH12、ADC2_CH1、FSPICLK、FSPIIO6、SUBSPICLK</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="48555" _msthash="508" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO13</td>
+			<td align="center" _msttexthash="9646" _msthash="509" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			21</td>
+			<td align="center" _msttexthash="38896" _msthash="510" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="36131017" _msthash="511" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO13、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO13</strong>、TOUCH13、ADC2_CH2、FSPIQ、FSPIIO7、SUBSPIQ</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="48711" _msthash="512" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO14</td>
+			<td align="center" _msttexthash="9750" _msthash="513" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			22</td>
+			<td align="center" _msttexthash="38896" _msthash="514" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="36607714" _msthash="515" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO14、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO14</strong>、TOUCH14、ADC2_CH3、FSPIWP、FSPIDQS、SUBSPIWP</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="48867" _msthash="516" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO15</td>
+			<td align="center" _msttexthash="5096" _msthash="517" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			8</td>
+			<td align="center" _msttexthash="38896" _msthash="518" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="18599737" _msthash="519" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO15、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO15</strong>、U0RTS、ADC2_CH4、XTAL_32K_P</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="49023" _msthash="520" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO16</td>
+			<td align="center" _msttexthash="5187" _msthash="521" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			9</td>
+			<td align="center" _msttexthash="38896" _msthash="522" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="18594199" _msthash="523" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO16、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO16</strong>、U0CTS、ADC2_CH5、XTAL_32K_N</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="49179" _msthash="524" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO17</td>
+			<td align="center" _msttexthash="9451" _msthash="525" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			10</td>
+			<td align="center" _msttexthash="38896" _msthash="526" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="60851180" _msthash="527" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			RTC_GPIO17，GPIO17，U1TXD，ADC2_CH6</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="49335" _msthash="528" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO18</td>
+			<td align="center" _msttexthash="9555" _msthash="529" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			11</td>
+			<td align="center" _msttexthash="38896" _msthash="530" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="18505942" _msthash="531" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO18、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO18</strong>、U1RXD、ADC2_CH7、CLK_OUT3</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="53183" _msthash="532" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			USB_D-</td>
+			<td align="center" _msttexthash="9763" _msthash="533" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			13</td>
+			<td align="center" _msttexthash="38896" _msthash="534" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="135341544" _msthash="535" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO19，GPIO19，U1RTS，ADC2_CH8，CLK_OUT2，USB_D<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">-</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="52871" _msthash="536" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			USB_D+</td>
+			<td align="center" _msttexthash="9867" _msthash="537" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			14</td>
+			<td align="center" _msttexthash="38896" _msthash="538" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="26462514" _msthash="539" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			RTC_GPIO20、GPIO20、U1CTS、ADC2_CH9、CLK_OUT1、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">USB_D+</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="48386" _msthash="540" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO21</td>
+			<td align="center" _msttexthash="9854" _msthash="541" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			23</td>
+			<td align="center" _msttexthash="38896" _msthash="542" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="14641081" _msthash="543" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			RTC_GPIO21，GPIO21</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="52637" _msthash="544" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			SPICS1</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">　</td>
+			<td align="center" _msttexthash="38896" _msthash="545" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="11173188" _msthash="546" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			SPICS1，GPIO26</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="48841" _msthash="547" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO33</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">　</td>
+			<td align="center" _msttexthash="38896" _msthash="548" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _msttexthash="48841" _msthash="549" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			GPIO33</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="48997" _msthash="550" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO34</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">　</td>
+			<td align="center" _msttexthash="38896" _msthash="551" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _msttexthash="48841" _msthash="552" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			GPIO33</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="49153" _msthash="553" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO35</td>
+			<td align="center" _msttexthash="10374" _msthash="554" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			28</td>
+			<td align="center" _msttexthash="38896" _msthash="555" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="9886227" _msthash="556" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			SPIIO6、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO35</strong>、FSPID、SUBSPID</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="49309" _msthash="557" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO36</td>
+			<td align="center" _msttexthash="10478" _msthash="558" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			29</td>
+			<td align="center" _msttexthash="38896" _msthash="559" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="10343008" _msthash="560" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			SPIIO7、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO36</strong>、FSPICLK、SUBSPICLK</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="49465" _msthash="561" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO37</td>
+			<td align="center" _msttexthash="9633" _msthash="562" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			30</td>
+			<td align="center" _msttexthash="38896" _msthash="563" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="9900683" _msthash="564" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			SPIDQS、<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">GPIO37</strong>、FSPIQ、SUBSPIQ</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="49621" _msthash="565" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO38</td>
+			<td align="center" _msttexthash="9737" _msthash="566" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			31</td>
+			<td align="center" _msttexthash="38896" _msthash="567" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="5626348" _msthash="568" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			GPIO38</strong>、FSPIWP、SUBSPIWP</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="33332" _msthash="569" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			MTCK</td>
+			<td align="center" _msttexthash="9841" _msthash="570" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			32</td>
+			<td align="center" _msttexthash="38896" _msthash="571" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="9511203" _msthash="572" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			MTCK、</strong>GPIO39、CLK_OUT3、SUBSPICS1</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="33969" _msthash="573" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			MTDO</td>
+			<td align="center" _msttexthash="9945" _msthash="574" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			33</td>
+			<td align="center" _msttexthash="38896" _msthash="575" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="4919928" _msthash="576" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			MTDO、</strong>GPIO40、CLK_OUT2</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="33189" _msthash="577" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			MTDI</td>
+			<td align="center" _msttexthash="10049" _msthash="578" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			34</td>
+			<td align="center" _msttexthash="38896" _msthash="579" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="24901162" _msthash="580" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			MTDI，GPIO41，CLK_OUT1</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="35542" _msthash="581" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			MTMS</td>
+			<td align="center" _msttexthash="10153" _msthash="582" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			35</td>
+			<td align="center" _msttexthash="38896" _msthash="583" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="9447451" _msthash="584" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			MTMS，GPIO42</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="43719" _msthash="585" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			U0TXD</td>
+			<td align="center" _msttexthash="10361" _msthash="586" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			37</td>
+			<td align="center" _msttexthash="38896" _msthash="587" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="26622934" _msthash="588" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			U0TXD，GPIO43，CLK_OUT1</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="43485" _msthash="589" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			U0RXD</td>
+			<td align="center" _msttexthash="10257" _msthash="590" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			36</td>
+			<td align="center" _msttexthash="38896" _msthash="591" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="26623285" _msthash="592" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			U0RXD，GPIO44，CLK_OUT2</td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="49296" _msthash="593" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO45</td>
+			<td align="center" _msttexthash="10166" _msthash="594" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			26</td>
+			<td align="center" _msttexthash="38896" _msthash="595" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _msttexthash="49296" _msthash="596" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			GPIO45</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="49452" _msthash="597" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO46</td>
+			<td align="center" _msttexthash="10075" _msthash="598" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			16</td>
+			<td align="center" _msttexthash="38896" _msthash="599" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _msttexthash="49452" _msthash="600" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			GPIO46</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(246, 248, 250)">
+			<td align="center" _msttexthash="49608" _msthash="601" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO47</td>
+			<td align="center" _msttexthash="9958" _msthash="602" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			24</td>
+			<td align="center" _msttexthash="38896" _msthash="603" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="40756755" _msthash="604" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			SPICLK_P_DIFF，GPIO47，SUBSPICLK_P_DIFF</strong></td>
+		</tr>
+		<tr style="box-sizing: border-box; border-top: 0.7) solid rgba(209; background-color: rgb(255, 255, 255)">
+			<td align="center" _msttexthash="49764" _msthash="605" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			GPIO48</td>
+			<td align="center" _msttexthash="10062" _msthash="606" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			25</td>
+			<td align="center" _msttexthash="38896" _msthash="607" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			I/O/T</td>
+			<td align="center" _msttexthash="40755741" _msthash="608" style="box-sizing: border-box; border-image: none 100% / 1 / 0 stretch; border: 1px solid rgb(209, 217, 224); padding-left: 13px; padding-right: 13px; padding-top: 6px; padding-bottom: 6px">
+			<strong _istranslated="1" style="box-sizing: border-box; font-weight: 600; margin-bottom: 0px">
+			SPICLK_N_DIFF，GPIO48，SUBSPICLK_N_DIFF</strong></td>
+		</tr>
+</table>
+</markdown-accessiblity-table>
+
+</body>
+
+</html>
