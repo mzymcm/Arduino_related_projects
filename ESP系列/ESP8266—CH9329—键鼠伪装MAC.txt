@@ -64,6 +64,7 @@ void mouseMove(int x, int y);
 void mouseClick(uint8_t btn, int x, int y);
 void sendKeyboardReport(uint8_t modifier, uint8_t keycode);
 void sendSingleKey(uint8_t modifier, uint8_t keycode);
+void sendCombination(uint8_t modifier, uint8_t keycode);
 void sendChar(char ch);
 void sendUnicodeChar_Hex(uint32_t codepoint);
 void sendUnicodeChar_LocationCode(uint32_t codepoint);
@@ -310,7 +311,7 @@ const char* macPageTemplate = R"rawliteral(
 </html>
 )rawliteral";
 
-// ==================== 虚拟键盘鼠标页面（优化版：增加鼠标拖拽节流） ====================
+// ==================== 虚拟键盘鼠标页面（优化版 + 组合键 + 方向键） ====================
 const char hidPage[] PROGMEM = 
 "<!DOCTYPE html>\n"
 "<html>\n"
@@ -337,6 +338,8 @@ const char hidPage[] PROGMEM =
 ".key-tab { background: #9c27b0; color: white; }\n"
 ".key-shift-active { background: #ff9800; color: white; box-shadow: 0 0 8px #ff9800; }\n"
 ".key-ime { background: #2196f3; color: white; }\n"
+".key-combo { background: #607d8b; color: white; }\n"
+".key-arrow { background: #ff9800; color: black; }\n"
 ".touchpad { background: #222; border-radius: 20px; padding: 20px; text-align: center; color: white; cursor: crosshair; user-select: none; touch-action: none; }\n"
 ".touchpad-area { background: #333; border-radius: 16px; height: 300px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 15px; position: relative; touch-action: none; cursor: crosshair; }\n"
 ".coord { font-size: 1rem; margin-top: 10px; }\n"
@@ -384,6 +387,29 @@ const char hidPage[] PROGMEM =
 "<div class=\"row\">\n"
 "<button class=\"key key-space\" data-key=\" \">空格</button>\n"
 "<button class=\"key key-ime\" data-special=\"ctrlspace\">中/英</button>\n"
+"</div>\n"
+"<!-- 方向键行 -->\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-arrow\" data-special=\"up\">↑</button>\n"
+"<button class=\"key key-arrow\" data-special=\"down\">↓</button>\n"
+"<button class=\"key key-arrow\" data-special=\"left\">←</button>\n"
+"<button class=\"key key-arrow\" data-special=\"right\">→</button>\n"
+"</div>\n"
+"<!-- 组合键行 -->\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_c\">Ctrl+C</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_v\">Ctrl+V</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_x\">Ctrl+X</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_z\">Ctrl+Z</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_a\">Ctrl+A</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_alt_del\">Ctrl+Alt+Del</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_shift_esc\">Ctrl+Shift+Esc</button>\n"
+"<button class=\"key key-combo\" data-combo=\"alt_tab\">Alt+Tab</button>\n"
+"<button class=\"key key-combo\" data-combo=\"win_r\">Win+R</button>\n"
+"<button class=\"key key-combo\" data-combo=\"win_e\">Win+E</button>\n"
+"<button class=\"key key-combo\" data-combo=\"win_d\">Win+D</button>\n"
 "</div>\n"
 "</div>\n"
 "<div id=\"mouse\" class=\"tab-content\">\n"
@@ -453,6 +479,10 @@ const char hidPage[] PROGMEM =
 "document.querySelectorAll('.key[data-special]').forEach(btn => {\n"
 "  btn.onclick = () => sendKey(btn.dataset.special, true);\n"
 "});\n"
+"// 新增组合键按钮处理\n"
+"document.querySelectorAll('.key[data-combo]').forEach(btn => {\n"
+"  btn.onclick = () => sendKey(btn.dataset.combo, true);\n"
+"});\n"
 "document.getElementById('shiftBtn').onclick = () => { shiftActive = !shiftActive; document.getElementById('shiftBtn').classList.toggle('key-shift-active', shiftActive); };\n"
 "document.getElementById('ctrlBtn').onclick = () => sendKey('ctrl', true);\n"
 "\n"
@@ -473,7 +503,6 @@ const char hidPage[] PROGMEM =
 "  currentX = x; currentY = y;\n"
 "  document.getElementById('coordX').innerText = Math.round(x);\n"
 "  document.getElementById('coordY').innerText = Math.round(y);\n"
-"  // 节流：记录待发送位置，延迟16ms后发送，保证最后一次移动被发送\n"
 "  pendingMoveX = x;\n"
 "  pendingMoveY = y;\n"
 "  if (moveThrottleTimer === null) {\n"
@@ -482,7 +511,6 @@ const char hidPage[] PROGMEM =
 "}\n"
 "\n"
 "async function clickMouse(btn) {\n"
-"  // 点击前先清空待发送的移动，确保位置准确\n"
 "  if (moveThrottleTimer) {\n"
 "    clearTimeout(moveThrottleTimer);\n"
 "    flushMove();\n"
@@ -571,7 +599,6 @@ const char hidPage[] PROGMEM =
 "function handleDragEnd(e) {\n"
 "  dragging = false;\n"
 "  touchArea.style.cursor = 'crosshair';\n"
-"  // 拖拽结束时强制发送最后一次移动\n"
 "  if (moveThrottleTimer) {\n"
 "    clearTimeout(moveThrottleTimer);\n"
 "    flushMove();\n"
@@ -722,13 +749,14 @@ void checkWiFiStatus() {
   else if (WiFi.status() == WL_CONNECTED && !sta_connected) sta_connected = true;
 }
 
-// ==================== 虚拟键盘鼠标函数实现（优化延迟） ====================
+// ==================== 虚拟键盘鼠标函数实现（优化延迟 + 组合键 + 方向键） ====================
 int screenWidth = 1920;
 int screenHeight = 1080;
 int currentMouseX = 960;
 int currentMouseY = 540;
 int chineseInputMethod = 3;
 
+// 键盘键码定义
 #define KEY_A       0x04
 #define KEY_B       0x05
 #define KEY_C       0x06
@@ -792,9 +820,18 @@ int chineseInputMethod = 3;
 #define KEY_KP_7    0x5F
 #define KEY_KP_8    0x60
 #define KEY_KP_9    0x61
-#define MOD_LEFT_SHIFT  0x02
+#define KEY_DELETE  0x4C
+// 方向键码
+#define KEY_UP      0x52
+#define KEY_DOWN    0x51
+#define KEY_LEFT    0x50
+#define KEY_RIGHT   0x4F
+
+// 修饰符定义
 #define MOD_LEFT_CTRL   0x01
+#define MOD_LEFT_SHIFT  0x02
 #define MOD_LEFT_ALT    0x04
+#define MOD_LEFT_GUI    0x08  // Windows键
 
 void screenToChip(int screenX, int screenY, uint8_t &lowX, uint8_t &highX, uint8_t &lowY, uint8_t &highY) {
   uint16_t chipX = (uint32_t)screenX * 4096 / screenWidth;
@@ -829,7 +866,7 @@ void sendAbsoluteMouse(uint8_t buttons, int screenX, int screenY, uint8_t wheel)
   for (int i = 0; i < 12; i++) sum += packet[i];
   packet[12] = sum;
   CH9329_SERIAL.write(packet, 13);
-  delay(2);  // 原为10ms，改为2ms，保持稳定性同时提升速度
+  delay(2);
 }
 
 void mouseMoveWithButton(int x, int y, bool leftPressed) {
@@ -873,6 +910,14 @@ void sendSingleKey(uint8_t modifier, uint8_t keycode) {
   sendKeyboardReport(modifier, keycode);
   sendKeyboardReport(0x00, 0x00);
   delay(5);
+}
+
+// 发送组合键（按下修饰符+主键，然后释放）
+void sendCombination(uint8_t modifier, uint8_t keycode) {
+  sendKeyboardReport(modifier, keycode);
+  delay(10);
+  sendKeyboardReport(0x00, 0x00);
+  delay(10);
 }
 
 void sendChar(char ch) {
@@ -1207,6 +1252,7 @@ void handleKey() {
 void handleSpecial() {
   if (!server.hasArg("key")) { server.send(400, "text/plain", "Missing key"); return; }
   String key = server.arg("key");
+  // 原有特殊键
   if (key == "enter") sendSingleKey(0x00, KEY_ENTER);
   else if (key == "backspace") sendSingleKey(0x00, KEY_BACKSPACE);
   else if (key == "tab") sendSingleKey(0x00, KEY_TAB);
@@ -1214,6 +1260,23 @@ void handleSpecial() {
   else if (key == "shift") sendSingleKey(MOD_LEFT_SHIFT, 0x00);
   else if (key == "ctrl") sendSingleKey(MOD_LEFT_CTRL, 0x00);
   else if (key == "ctrlspace") sendSingleKey(MOD_LEFT_CTRL, KEY_SPACE);
+  // 方向键
+  else if (key == "up") sendSingleKey(0x00, KEY_UP);
+  else if (key == "down") sendSingleKey(0x00, KEY_DOWN);
+  else if (key == "left") sendSingleKey(0x00, KEY_LEFT);
+  else if (key == "right") sendSingleKey(0x00, KEY_RIGHT);
+  // 组合键
+  else if (key == "ctrl_c") sendCombination(MOD_LEFT_CTRL, KEY_C);
+  else if (key == "ctrl_v") sendCombination(MOD_LEFT_CTRL, KEY_V);
+  else if (key == "ctrl_x") sendCombination(MOD_LEFT_CTRL, KEY_X);
+  else if (key == "ctrl_z") sendCombination(MOD_LEFT_CTRL, KEY_Z);
+  else if (key == "ctrl_a") sendCombination(MOD_LEFT_CTRL, KEY_A);
+  else if (key == "ctrl_alt_del") sendCombination(MOD_LEFT_CTRL | MOD_LEFT_ALT, KEY_DELETE);
+  else if (key == "ctrl_shift_esc") sendCombination(MOD_LEFT_CTRL | MOD_LEFT_SHIFT, KEY_ESC);
+  else if (key == "alt_tab") sendCombination(MOD_LEFT_ALT, KEY_TAB);
+  else if (key == "win_r") sendCombination(MOD_LEFT_GUI, KEY_R);
+  else if (key == "win_e") sendCombination(MOD_LEFT_GUI, KEY_E);
+  else if (key == "win_d") sendCombination(MOD_LEFT_GUI, KEY_D);
   else { server.send(400, "text/plain", "Unknown special"); return; }
   server.send(200, "text/plain", "OK");
 }
@@ -1323,6 +1386,5 @@ void loop() {
     previousMillis = currentMillis;
     if (config.sta_configured) checkWiFiStatus();
   }
-  // 移除原来的 delay(100)，改为极短的 delay(1) 保证看门狗不溢出同时网络响应迅速
   delay(1);
 }
