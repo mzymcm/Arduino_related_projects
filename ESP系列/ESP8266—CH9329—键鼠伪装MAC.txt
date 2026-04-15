@@ -58,7 +58,7 @@ void handleHidPage();
 
 // 虚拟键盘鼠标函数
 void screenToChip(int screenX, int screenY, uint8_t &lowX, uint8_t &highX, uint8_t &lowY, uint8_t &highY);
-void sendAbsoluteMouse(uint8_t buttons, int screenX, int screenY, uint8_t wheel = 0x00);  // 默认参数
+void sendAbsoluteMouse(uint8_t buttons, int screenX, int screenY, uint8_t wheel = 0x00);
 void mouseMoveWithButton(int x, int y, bool leftPressed);
 void mouseMove(int x, int y);
 void mouseClick(uint8_t btn, int x, int y);
@@ -310,8 +310,7 @@ const char* macPageTemplate = R"rawliteral(
 </html>
 )rawliteral";
 
-// ==================== 虚拟键盘鼠标页面（使用转义字符串，避免编译错误） ====================
-// 为节省篇幅，此处使用传统字符串数组方式（确保编译通过）
+// ==================== 虚拟键盘鼠标页面 ====================
 const char hidPage[] PROGMEM = 
 "<!DOCTYPE html>\n"
 "<html>\n"
@@ -590,8 +589,17 @@ void resetConfig() {
 
 void loadConfig() {
   EEPROM.get(0, config);
-  if (config.magic != CONFIG_MAGIC || config.ap_ssid[0] == 0 || !config.ap_configured) {
-    resetConfig();
+  if (config.magic != CONFIG_MAGIC || !config.ap_configured) {
+    // 初次运行：使用热点 KeyAndMAC / abcd1234，MAC 保持出厂默认（全零标志）
+    config.magic = CONFIG_MAGIC;
+    strcpy(config.ap_ssid, "KeyAndMAC");
+    strcpy(config.ap_password, "abcd1234");
+    memset(config.sta_ssid, 0, sizeof(config.sta_ssid));
+    memset(config.sta_password, 0, sizeof(config.sta_password));
+    memset(config.mac, 0, sizeof(config.mac));      // 全零表示不修改出厂 MAC
+    config.sta_configured = false;
+    config.ap_configured = true;
+    saveConfig();
   }
 }
 
@@ -601,8 +609,18 @@ void saveConfig() {
 }
 
 void setAPMAC() {
-  wifi_set_macaddr(SOFTAP_IF, config.mac);
-  delay(500);
+  // 若 MAC 数组全为零，则保留开发板出厂 MAC，不进行任何修改
+  bool macIsZero = true;
+  for (int i = 0; i < 6; i++) {
+    if (config.mac[i] != 0x00) {
+      macIsZero = false;
+      break;
+    }
+  }
+  if (!macIsZero) {
+    wifi_set_macaddr(SOFTAP_IF, config.mac);
+    delay(500);
+  }
 }
 
 void restartAP() {
@@ -1238,7 +1256,7 @@ void setup() {
   Serial.begin(9600);
   delay(200);
   EEPROM.begin(EEPROM_SIZE);
-  loadConfig();  // 魔数检测，首次运行自动清除历史WiFi
+  loadConfig();  // 魔数检测，首次运行自动设置 KeyAndMAC / abcd1234
   WiFi.disconnect(true);
   WiFi.persistent(false);
   delay(100);
