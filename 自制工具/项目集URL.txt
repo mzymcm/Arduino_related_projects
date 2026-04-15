@@ -1,0 +1,12 @@
+https://dmitry.gr/
+一个外国高手的项目集
+https://hackaday.io/discover
+一些项目集
+http://www.network-science.de/ascii/
+字符变图形在线工具
+https://www.breatharian.eu/hw/
+一个硬件制作者的网页
+https://eg3.com/guides/
+前沿理念
+https://github.com/lraton/FlopperZiro/tree/main/main
+Flipper Zero克隆版，有借鉴意义
