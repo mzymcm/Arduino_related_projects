@@ -310,7 +310,7 @@ const char* macPageTemplate = R"rawliteral(
 </html>
 )rawliteral";
 
-// ==================== 虚拟键盘鼠标页面 ====================
+// ==================== 虚拟键盘鼠标页面（优化版：增加鼠标拖拽节流） ====================
 const char hidPage[] PROGMEM = 
 "<!DOCTYPE html>\n"
 "<html>\n"
@@ -426,6 +426,9 @@ const char hidPage[] PROGMEM =
 "let lastX = 0, lastY = 0;\n"
 "let sensitivity = 1.5;\n"
 "let leftLockActive = false;\n"
+"// 节流相关变量\n"
+"let moveThrottleTimer = null;\n"
+"let pendingMoveX = null, pendingMoveY = null;\n"
 "\n"
 "document.querySelectorAll('.tab-btn').forEach(btn => {\n"
 "  btn.onclick = () => {\n"
@@ -453,18 +456,37 @@ const char hidPage[] PROGMEM =
 "document.getElementById('shiftBtn').onclick = () => { shiftActive = !shiftActive; document.getElementById('shiftBtn').classList.toggle('key-shift-active', shiftActive); };\n"
 "document.getElementById('ctrlBtn').onclick = () => sendKey('ctrl', true);\n"
 "\n"
+"// 实际发送移动请求（带节流）\n"
+"function flushMove() {\n"
+"  if (pendingMoveX !== null && pendingMoveY !== null) {\n"
+"    let x = pendingMoveX, y = pendingMoveY;\n"
+"    pendingMoveX = pendingMoveY = null;\n"
+"    let url = leftLockActive ? `/mouse_move_locked?x=${Math.round(x)}&y=${Math.round(y)}` : `/mouse_move?x=${Math.round(x)}&y=${Math.round(y)}`;\n"
+"    fetch(url).catch(e => console.error(e));\n"
+"  }\n"
+"  moveThrottleTimer = null;\n"
+"}\n"
+"\n"
 "async function moveMouseTo(x, y, forceLeftPress = null) {\n"
 "  x = Math.min(screenW, Math.max(0, x));\n"
 "  y = Math.min(screenH, Math.max(0, y));\n"
 "  currentX = x; currentY = y;\n"
 "  document.getElementById('coordX').innerText = Math.round(x);\n"
 "  document.getElementById('coordY').innerText = Math.round(y);\n"
-"  let pressLeft = (forceLeftPress !== null) ? forceLeftPress : leftLockActive;\n"
-"  let url = pressLeft ? `/mouse_move_locked?x=${Math.round(x)}&y=${Math.round(y)}` : `/mouse_move?x=${Math.round(x)}&y=${Math.round(y)}`;\n"
-"  await fetch(url);\n"
+"  // 节流：记录待发送位置，延迟16ms后发送，保证最后一次移动被发送\n"
+"  pendingMoveX = x;\n"
+"  pendingMoveY = y;\n"
+"  if (moveThrottleTimer === null) {\n"
+"    moveThrottleTimer = setTimeout(flushMove, 16);\n"
+"  }\n"
 "}\n"
 "\n"
 "async function clickMouse(btn) {\n"
+"  // 点击前先清空待发送的移动，确保位置准确\n"
+"  if (moveThrottleTimer) {\n"
+"    clearTimeout(moveThrottleTimer);\n"
+"    flushMove();\n"
+"  }\n"
 "  await fetch(`/mouse_click?btn=${btn}&x=${Math.round(currentX)}&y=${Math.round(currentY)}`);\n"
 "}\n"
 "\n"
@@ -549,6 +571,11 @@ const char hidPage[] PROGMEM =
 "function handleDragEnd(e) {\n"
 "  dragging = false;\n"
 "  touchArea.style.cursor = 'crosshair';\n"
+"  // 拖拽结束时强制发送最后一次移动\n"
+"  if (moveThrottleTimer) {\n"
+"    clearTimeout(moveThrottleTimer);\n"
+"    flushMove();\n"
+"  }\n"
 "}\n"
 "\n"
 "touchArea.addEventListener('mousedown', handleDragStart);\n"
@@ -590,13 +617,12 @@ void resetConfig() {
 void loadConfig() {
   EEPROM.get(0, config);
   if (config.magic != CONFIG_MAGIC || !config.ap_configured) {
-    // 初次运行：使用热点 KeyAndMAC / abcd1234，MAC 保持出厂默认（全零标志）
     config.magic = CONFIG_MAGIC;
     strcpy(config.ap_ssid, "KeyAndMAC");
     strcpy(config.ap_password, "abcd1234");
     memset(config.sta_ssid, 0, sizeof(config.sta_ssid));
     memset(config.sta_password, 0, sizeof(config.sta_password));
-    memset(config.mac, 0, sizeof(config.mac));      // 全零表示不修改出厂 MAC
+    memset(config.mac, 0, sizeof(config.mac));
     config.sta_configured = false;
     config.ap_configured = true;
     saveConfig();
@@ -609,7 +635,6 @@ void saveConfig() {
 }
 
 void setAPMAC() {
-  // 若 MAC 数组全为零，则保留开发板出厂 MAC，不进行任何修改
   bool macIsZero = true;
   for (int i = 0; i < 6; i++) {
     if (config.mac[i] != 0x00) {
@@ -697,12 +722,12 @@ void checkWiFiStatus() {
   else if (WiFi.status() == WL_CONNECTED && !sta_connected) sta_connected = true;
 }
 
-// ==================== 虚拟键盘鼠标函数实现 ====================
+// ==================== 虚拟键盘鼠标函数实现（优化延迟） ====================
 int screenWidth = 1920;
 int screenHeight = 1080;
 int currentMouseX = 960;
 int currentMouseY = 540;
-int chineseInputMethod = 3;  // 默认剪贴板粘贴（实际回退到Alt+Hex）
+int chineseInputMethod = 3;
 
 #define KEY_A       0x04
 #define KEY_B       0x05
@@ -804,7 +829,7 @@ void sendAbsoluteMouse(uint8_t buttons, int screenX, int screenY, uint8_t wheel)
   for (int i = 0; i < 12; i++) sum += packet[i];
   packet[12] = sum;
   CH9329_SERIAL.write(packet, 13);
-  delay(10);
+  delay(2);  // 原为10ms，改为2ms，保持稳定性同时提升速度
 }
 
 void mouseMoveWithButton(int x, int y, bool leftPressed) {
@@ -818,7 +843,7 @@ void mouseMove(int x, int y) { mouseMoveWithButton(x, y, false); }
 
 void mouseClick(uint8_t btn, int x, int y) {
   sendAbsoluteMouse(btn, x, y, 0x00);
-  delay(50);
+  delay(30);
   sendAbsoluteMouse(0x00, x, y, 0x00);
 }
 
@@ -841,13 +866,13 @@ void sendKeyboardReport(uint8_t modifier, uint8_t keycode) {
   for (int i = 0; i < 13; i++) sum += packet[i];
   packet[13] = sum;
   CH9329_SERIAL.write(packet, 14);
-  delay(5);
+  delay(2);
 }
 
 void sendSingleKey(uint8_t modifier, uint8_t keycode) {
   sendKeyboardReport(modifier, keycode);
   sendKeyboardReport(0x00, 0x00);
-  delay(10);
+  delay(5);
 }
 
 void sendChar(char ch) {
@@ -906,10 +931,10 @@ void sendUnicodeChar_Hex(uint32_t codepoint) {
   char hex[9];
   snprintf(hex, sizeof(hex), "%X", codepoint);
   sendKeyboardReport(MOD_LEFT_ALT, 0x00);
-  delay(80);
+  delay(50);
   sendKeyboardReport(MOD_LEFT_ALT, KEY_KP_PLUS);
   sendKeyboardReport(MOD_LEFT_ALT, 0x00);
-  delay(40);
+  delay(30);
   for (char* p = hex; *p; p++) {
     char c = *p;
     uint8_t modifier = MOD_LEFT_ALT;
@@ -933,10 +958,10 @@ void sendUnicodeChar_Hex(uint32_t codepoint) {
     } else continue;
     sendKeyboardReport(modifier, keycode);
     sendKeyboardReport(modifier, 0x00);
-    delay(30);
+    delay(20);
   }
   sendKeyboardReport(0, 0x00);
-  delay(60);
+  delay(40);
 }
 
 void sendUnicodeChar_LocationCode(uint32_t codepoint) {
@@ -953,15 +978,15 @@ void sendUnicodeChar_LocationCode(uint32_t codepoint) {
   sendKeyboardReport(MOD_LEFT_CTRL, KEY_LEFT_BRACKET);
   sendKeyboardReport(MOD_LEFT_CTRL, 0x00);
   sendKeyboardReport(0x00, 0x00);
-  delay(100);
+  delay(80);
   for (char* p = locCode; *p; p++) {
     uint8_t keycode = KEY_1 + (*p - '1');
     if (*p == '0') keycode = KEY_0;
     sendSingleKey(0x00, keycode);
-    delay(30);
+    delay(20);
   }
   sendSingleKey(0x00, KEY_ENTER);
-  delay(100);
+  delay(80);
 }
 
 void sendText(const String& text) {
@@ -995,7 +1020,7 @@ void sendText(const String& text) {
     } else {
       sendChar(ch);
     }
-    delay(25);
+    delay(20);
   }
 }
 
@@ -1256,7 +1281,7 @@ void setup() {
   Serial.begin(9600);
   delay(200);
   EEPROM.begin(EEPROM_SIZE);
-  loadConfig();  // 魔数检测，首次运行自动设置 KeyAndMAC / abcd1234
+  loadConfig();
   WiFi.disconnect(true);
   WiFi.persistent(false);
   delay(100);
@@ -1298,5 +1323,6 @@ void loop() {
     previousMillis = currentMillis;
     if (config.sta_configured) checkWiFiStatus();
   }
-  delay(100);
+  // 移除原来的 delay(100)，改为极短的 delay(1) 保证看门狗不溢出同时网络响应迅速
+  delay(1);
 }
