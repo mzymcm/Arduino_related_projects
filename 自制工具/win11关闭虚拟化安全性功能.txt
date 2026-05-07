@@ -1,0 +1,4 @@
+-----关闭虚拟化安全性功能
+bcdedit /set hypervisorlaunchtype off
+-----打开虚拟化安全性功能
+bcdedit /set hypervisorlaunchtype auto
