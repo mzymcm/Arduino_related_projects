@@ -1,0 +1,1390 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+#include <EEPROM.h>
+#include <user_interface.h>
+
+#define CH9329_SERIAL Serial
+
+// ==================== MAC 配置 ====================
+const char* DEFAULT_AP_SSID = "AlxaTax-2";
+const char* DEFAULT_AP_PASSWORD = "alssw0483";
+uint8_t DEFAULT_MAC[] = {0x06, 0x69, 0x6C, 0x45, 0xCA, 0x21};
+
+#define EEPROM_SIZE 1024
+#define CONFIG_MAGIC 0x5A5A
+
+struct Config {
+  uint16_t magic;
+  char ap_ssid[32];
+  char ap_password[64];
+  char sta_ssid[32];
+  char sta_password[64];
+  uint8_t mac[6];
+  bool sta_configured;
+  bool ap_configured;
+};
+
+Config config;
+bool sta_connected = false;
+unsigned long previousMillis = 0;
+const long interval = 10000;
+
+ESP8266WebServer server(80);
+
+// 函数声明
+void loadConfig();
+void saveConfig();
+void resetConfig();
+void setAPMAC();
+void connectToWiFi();
+String macToString(uint8_t* mac);
+String bssidToString(uint8_t* bssid);
+bool parseMAC(const String& macStr, uint8_t* mac);
+String getEncryptionTypeStr(uint8_t encryptionType);
+void sortNetworksByRSSI(int* indices, int n);
+String getSignalStrengthClass(int rssi);
+void checkWiFiStatus();
+void restartAP();
+
+void handleRoot();
+void handleMacPage();
+void handleSave();
+void handleScan();
+void handleScanMAC();
+void handleStatus();
+void handleReset();
+void handleReboot();
+void handleHidPage();
+
+// 虚拟键盘鼠标函数
+void screenToChip(int screenX, int screenY, uint8_t &lowX, uint8_t &highX, uint8_t &lowY, uint8_t &highY);
+void sendAbsoluteMouse(uint8_t buttons, int screenX, int screenY, uint8_t wheel = 0x00);
+void mouseMoveWithButton(int x, int y, bool leftPressed);
+void mouseMove(int x, int y);
+void mouseClick(uint8_t btn, int x, int y);
+void sendKeyboardReport(uint8_t modifier, uint8_t keycode);
+void sendSingleKey(uint8_t modifier, uint8_t keycode);
+void sendCombination(uint8_t modifier, uint8_t keycode);
+void sendChar(char ch);
+void sendUnicodeChar_Hex(uint32_t codepoint);
+void sendUnicodeChar_LocationCode(uint32_t codepoint);
+void sendText(const String& text);
+void handleKey();
+void handleSpecial();
+void handleMouseMove();
+void handleMouseMoveLocked();
+void handleMousePressLeft();
+void handleMouseReleaseLeft();
+void handleMouseClick();
+void handleSetRes();
+void handleText();
+void handleNotFound();
+
+// ==================== HTML 页面（导航页） ====================
+const char navHtml[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP8266 多功能控制器</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f0f2f5; text-align: center; }
+    .container { max-width: 500px; margin: 50px auto; }
+    h1 { color: #1e3c72; }
+    .card { background: white; border-radius: 16px; padding: 30px; margin: 20px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); cursor: pointer; transition: 0.2s; }
+    .card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
+    .card h2 { margin: 0 0 10px; color: #007cba; }
+    .card p { color: #666; margin: 0; }
+    .card.mac { border-left: 5px solid #28a745; }
+    .card.hid { border-left: 5px solid #dc3545; }
+    .footer { margin-top: 30px; color: #999; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ESP8266 多功能控制器</h1>
+    <div class="card mac" onclick="location.href='/mac'">
+      <h2>🔧 MAC伪装 & WiFi配置</h2>
+      <p>修改AP热点、WiFi连接、MAC地址伪装</p>
+    </div>
+    <div class="card hid" onclick="location.href='/hid'">
+      <h2>⌨️ 虚拟键盘鼠标</h2>
+      <p>绝对鼠标、触摸板拖动、中文穿透输入</p>
+    </div>
+    <div class="footer">ESP8266 + CH9329 智能控制器</div>
+  </div>
+</body>
+</html>
+)rawliteral";
+
+// ==================== MAC 配置页面（完整版） ====================
+const char* macPageTemplate = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP WiFi配置</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: Arial, "Microsoft YaHei", sans-serif; margin: 0; padding: 15px; background: #f5f5f5; font-size: 16px; touch-action: manipulation; }
+    .container { max-width: 100%; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1 { color: #333; text-align: center; margin-top: 0; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: bold; }
+    input, select { width: 100%; padding: 12px 15px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; min-height: 48px; }
+    input:focus, select:focus { border-color: #007cba; outline: none; }
+    button { width: 100%; padding: 15px; background: #007cba; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; min-height: 50px; margin-top: 10px; }
+    button:hover { background: #005a87; }
+    button:disabled { background: #cccccc; cursor: not-allowed; }
+    .status { padding: 15px; border-radius: 8px; margin: 15px 0; font-size: 14px; }
+    .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    .scan-btn { background: #28a745; margin-bottom: 15px; }
+    .scan-btn:hover { background: #218838; }
+    .tab { display: flex; border: 1px solid #ccc; background-color: #f1f1f1; border-radius: 8px 8px 0 0; }
+    .tab button { flex: 1; border: none; padding: 14px 16px; font-size: 16px; background: inherit; cursor: pointer; }
+    .tab button.active { background-color: #ccc; }
+    .tabcontent { display: none; padding: 15px; border: 1px solid #ccc; border-top: none; border-radius: 0 0 8px 8px; }
+    .mac-display { font-family: monospace; background: #f8f9fa; padding: 5px 10px; border-radius: 4px; border: 1px solid #dee2e6; }
+    .link-bar { display: flex; justify-content: space-around; margin-top: 20px; flex-wrap: wrap; }
+    .link-bar a { color: #007cba; text-decoration: none; padding: 10px 15px; border: 1px solid #007cba; border-radius: 6px; margin: 5px; flex: 1; text-align: center; min-width: 100px; }
+    .link-bar a:hover { background: #007cba; color: white; }
+    .wifi-mac-list { max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin-top: 10px; background: #f9f9f9; }
+    .wifi-mac-item { padding: 8px; border-bottom: 1px solid #eee; }
+    .wifi-mac-item:hover { background: #e9ecef; }
+    .use-mac-btn { background: #17a2b8; padding: 8px 12px; font-size: 14px; min-height: auto; width: auto; margin: 5px 0; }
+    .reset-btn { background: #dc3545; }
+    .reset-btn:hover { background: #c82333; }
+    .loading { display: none; text-align: center; padding: 20px; }
+    .signal-strength { display: inline-block; width: 60px; text-align: right; }
+    .signal-strong { color: #28a745; }
+    .signal-medium { color: #ffc107; }
+    .signal-weak { color: #dc3545; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ESP WiFi配置</h1>
+    <div class="status info">
+      <strong>系统状态:</strong><br>
+      AP热点: %AP_SSID%<br>
+      AP IP: %AP_IP%<br>
+      AP MAC: <span class="mac-display">%AP_MAC%</span><br>
+      STA连接: %STA_STATUS%<br>
+      %STA_DETAILS%
+    </div>
+    <div class="tab">
+      <button class="tablinks active" onclick="openTab(event, 'APTab')">AP设置</button>
+      <button class="tablinks" onclick="openTab(event, 'WiFiTab')">WiFi连接</button>
+      <button class="tablinks" onclick="openTab(event, 'MacTab')">MAC地址</button>
+    </div>
+    <div id="APTab" class="tabcontent" style="display:block;">
+      <form action="/save" method="POST" onsubmit="return validateForm(this)">
+        <input type="hidden" name="type" value="ap">
+        <div class="form-group">
+          <label for="ap_ssid">AP热点名称:</label>
+          <input type="text" id="ap_ssid" name="ap_ssid" value="%AP_SSID%" placeholder="输入AP热点名称" required minlength="1" maxlength="31">
+        </div>
+        <div class="form-group">
+          <label for="ap_password">AP热点密码:</label>
+          <input type="password" id="ap_password" name="ap_password" value="%AP_PASSWORD%" placeholder="输入AP热点密码" minlength="8" maxlength="63">
+        </div>
+        <button type="submit">保存AP设置</button>
+      </form>
+    </div>
+    <div id="WiFiTab" class="tabcontent">
+      <button type="button" class="scan-btn" onclick="scanWiFi()">扫描可用WiFi</button>
+      <form action="/save" method="POST" onsubmit="return validateForm(this)">
+        <input type="hidden" name="type" value="wifi">
+        <div class="form-group">
+          <label for="sta_ssid">WiFi名称:</label>
+          <input type="text" id="sta_ssid" name="sta_ssid" value="%STA_SSID%" placeholder="输入WiFi名称" required minlength="1" maxlength="31">
+        </div>
+        <div class="form-group">
+          <label for="sta_password">WiFi密码:</label>
+          <input type="password" id="sta_password" name="sta_password" value="%STA_PASSWORD%" placeholder="输入WiFi密码" minlength="8" maxlength="63">
+        </div>
+        <button type="submit">保存并连接</button>
+      </form>
+    </div>
+    <div id="MacTab" class="tabcontent">
+      <div class="status info">
+        <strong>MAC地址信息:</strong><br>
+        当前MAC: <span class="mac-display">%CURRENT_MAC%</span><br>
+        默认MAC: <span class="mac-display">06:69:6C:45:CA:21</span>
+      </div>
+      <form action="/save" method="POST" onsubmit="return validateMAC(this)">
+        <input type="hidden" name="type" value="mac">
+        <div class="form-group">
+          <label for="mac_address">自定义MAC地址:</label>
+          <input type="text" id="mac_address" name="mac_address" value="%CURRENT_MAC%" placeholder="06:69:6C:45:CA:21" pattern="([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}">
+        </div>
+        <button type="submit">保存MAC地址</button>
+      </form>
+      <button type="button" class="scan-btn" onclick="scanWiFiMAC()">扫描WiFi MAC地址</button>
+      <div id="wifiMacList" class="wifi-mac-list" style="display:none;">
+        <h4>扫描到的WiFi MAC地址:</h4>
+        <div id="wifiMacItems"></div>
+      </div>
+    </div>
+    <div class="loading" id="loading"><p>扫描中，请稍候...</p></div>
+    <div class="link-bar">
+      <a href="/status">系统状态</a>
+      <a href="/reset" onclick="return confirm('确定要恢复默认设置吗？这将清除所有配置！')">恢复默认</a>
+      <a href="/reboot">重启设备</a>
+      <a href="/">返回首页</a>
+    </div>
+  </div>
+  <script>
+    function openTab(evt, tabName) {
+      var i, tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) tabcontent[i].style.display = "none";
+      var tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) tablinks[i].className = tablinks[i].className.replace(" active", "");
+      document.getElementById(tabName).style.display = "block";
+      if (evt) evt.currentTarget.className += " active";
+    }
+    function validateForm(form) {
+      var inputs = form.querySelectorAll('input[required]');
+      for (var i = 0; i < inputs.length; i++) {
+        if (!inputs[i].value.trim()) {
+          alert('请填写所有必填字段');
+          inputs[i].focus();
+          return false;
+        }
+      }
+      return true;
+    }
+    function validateMAC(form) {
+      var macInput = document.getElementById('mac_address');
+      var macPattern = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/;
+      if (macInput.value && !macPattern.test(macInput.value)) {
+        alert('MAC地址格式不正确，请使用格式: 06:69:6C:45:CA:21');
+        macInput.focus();
+        return false;
+      }
+      return true;
+    }
+    function scanWiFi() {
+      window.open('/scan', 'wifiScan', 'width=600,height=700,scrollbars=yes');
+    }
+    function scanWiFiMAC() {
+      var btn = document.querySelector('#MacTab .scan-btn');
+      var wifiMacList = document.getElementById('wifiMacList');
+      var wifiMacItems = document.getElementById('wifiMacItems');
+      var loading = document.getElementById('loading');
+      btn.innerHTML = '扫描中...';
+      btn.disabled = true;
+      loading.style.display = 'block';
+      wifiMacItems.innerHTML = '';
+      wifiMacList.style.display = 'block';
+      fetch('/scanmac')
+        .then(response => {
+          if (!response.ok) throw new Error('网络响应不正常');
+          return response.text();
+        })
+        .then(html => {
+          wifiMacItems.innerHTML = html;
+          btn.innerHTML = '扫描WiFi MAC地址';
+          btn.disabled = false;
+          loading.style.display = 'none';
+        })
+        .catch(error => {
+          wifiMacItems.innerHTML = '<p style="color:red;">扫描失败: ' + error.message + '</p>';
+          btn.innerHTML = '扫描WiFi MAC地址';
+          btn.disabled = false;
+          loading.style.display = 'none';
+        });
+    }
+    function useMacAddress(mac) {
+      document.getElementById('mac_address').value = mac;
+    }
+    function selectSSID(ssid) {
+      window.opener.document.getElementById('sta_ssid').value = ssid;
+      window.close();
+    }
+  </script>
+</body>
+</html>
+)rawliteral";
+
+// ==================== 虚拟键盘鼠标页面（优化版 + 组合键 + 方向键） ====================
+const char hidPage[] PROGMEM = 
+"<!DOCTYPE html>\n"
+"<html>\n"
+"<head>\n"
+"<meta charset=\"UTF-8\">\n"
+"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\">\n"
+"<title>ESP8266 虚拟键盘鼠标</title>\n"
+"<style>\n"
+"* { box-sizing: border-box; }\n"
+"body { background: linear-gradient(135deg, #1e3c72, #2a5298); font-family: 'Segoe UI', sans-serif; margin:0; padding:20px; }\n"
+".container { max-width: 1200px; margin:auto; }\n"
+".tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }\n"
+".tab-btn { background: rgba(0,0,0,0.6); color: white; border: none; padding: 12px 24px; border-radius: 30px; font-size: 1.1rem; cursor: pointer; transition: 0.2s; }\n"
+".tab-btn.active { background: #2196f3; box-shadow: 0 0 10px #2196f3; }\n"
+".tab-content { display: none; background: rgba(0,0,0,0.5); border-radius: 20px; padding: 20px; }\n"
+".tab-content.active { display: block; }\n"
+".row { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }\n"
+".key { background: #f0f0f0; border: none; border-radius: 8px; padding: 12px 16px; font-weight: bold; cursor: pointer; min-width: 55px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.05s linear; }\n"
+".key:active { transform: scale(0.96); background: #d0d0d0; }\n"
+".key-special { background: #ffc107; }\n"
+".key-space { min-width: 200px; }\n"
+".key-backspace { background: #f44336; color: white; }\n"
+".key-enter { background: #4caf50; color: white; }\n"
+".key-tab { background: #9c27b0; color: white; }\n"
+".key-shift-active { background: #ff9800; color: white; box-shadow: 0 0 8px #ff9800; }\n"
+".key-ime { background: #2196f3; color: white; }\n"
+".key-combo { background: #607d8b; color: white; }\n"
+".key-arrow { background: #ff9800; color: black; }\n"
+".touchpad { background: #222; border-radius: 20px; padding: 20px; text-align: center; color: white; cursor: crosshair; user-select: none; touch-action: none; }\n"
+".touchpad-area { background: #333; border-radius: 16px; height: 300px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 15px; position: relative; touch-action: none; cursor: crosshair; }\n"
+".coord { font-size: 1rem; margin-top: 10px; }\n"
+".btn { background: #4caf50; color: white; border: none; border-radius: 8px; padding: 8px 20px; cursor: pointer; margin-top: 10px; }\n"
+".btn-danger { background: #f44336; }\n"
+".btn-warning { background: #ff9800; }\n"
+"textarea { width: 100%; padding: 10px; border-radius: 10px; border: none; font-size: 1rem; margin-top: 10px; }\n"
+".status { text-align: center; margin-top: 15px; color: #ddd; font-size: 0.9rem; }\n"
+".home-link { display: inline-block; background: #007cba; color: white; padding: 10px 20px; border-radius: 30px; text-decoration: none; margin-top: 20px; font-weight: bold; }\n"
+"@media (max-width:700px) { .key { padding: 8px 10px; min-width: 40px; } .key-space { min-width: 120px; } .touchpad-area { height: 200px; } }\n"
+"</style>\n"
+"</head>\n"
+"<body>\n"
+"<div class=\"container\">\n"
+"<div class=\"tabs\">\n"
+"<button class=\"tab-btn active\" data-tab=\"keyboard\">⌨️ 键盘</button>\n"
+"<button class=\"tab-btn\" data-tab=\"mouse\">🖱️ 触摸板鼠标</button>\n"
+"<button class=\"tab-btn\" data-tab=\"text\">📝 文本穿透</button>\n"
+"</div>\n"
+"<div id=\"keyboard\" class=\"tab-content active\">\n"
+"<div class=\"row\">\n"
+"<button class=\"key\" data-key=\"`\">`</button> <button class=\"key\" data-key=\"1\">1</button> <button class=\"key\" data-key=\"2\">2</button> <button class=\"key\" data-key=\"3\">3</button> <button class=\"key\" data-key=\"4\">4</button>\n"
+"<button class=\"key\" data-key=\"5\">5</button> <button class=\"key\" data-key=\"6\">6</button> <button class=\"key\" data-key=\"7\">7</button> <button class=\"key\" data-key=\"8\">8</button>\n"
+"<button class=\"key\" data-key=\"9\">9</button> <button class=\"key\" data-key=\"0\">0</button> <button class=\"key\" data-key=\"-\">-</button> <button class=\"key\" data-key=\"=\">=</button>\n"
+"<button class=\"key key-backspace\" data-special=\"backspace\">⌫</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key\" data-key=\"q\">Q</button> <button class=\"key\" data-key=\"w\">W</button> <button class=\"key\" data-key=\"e\">E</button> <button class=\"key\" data-key=\"r\">R</button>\n"
+"<button class=\"key\" data-key=\"t\">T</button> <button class=\"key\" data-key=\"y\">Y</button> <button class=\"key\" data-key=\"u\">U</button> <button class=\"key\" data-key=\"i\">I</button>\n"
+"<button class=\"key\" data-key=\"o\">O</button> <button class=\"key\" data-key=\"p\">P</button> <button class=\"key\" data-key=\"[\">[</button> <button class=\"key\" data-key=\"]\">]</button>\n"
+"<button class=\"key\" data-special=\"backslash\">\\</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-tab\" data-special=\"tab\">Tab</button> <button class=\"key\" data-key=\"a\">A</button> <button class=\"key\" data-key=\"s\">S</button> <button class=\"key\" data-key=\"d\">D</button>\n"
+"<button class=\"key\" data-key=\"f\">F</button> <button class=\"key\" data-key=\"g\">G</button> <button class=\"key\" data-key=\"h\">H</button> <button class=\"key\" data-key=\"j\">J</button>\n"
+"<button class=\"key\" data-key=\"k\">K</button> <button class=\"key\" data-key=\"l\">L</button> <button class=\"key\" data-key=\";\">;</button> <button class=\"key\" data-key=\"'\">'</button>\n"
+"<button class=\"key key-enter\" data-special=\"enter\">↵</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-special\" id=\"shiftBtn\">Shift</button> <button class=\"key\" data-key=\"z\">Z</button> <button class=\"key\" data-key=\"x\">X</button> <button class=\"key\" data-key=\"c\">C</button>\n"
+"<button class=\"key\" data-key=\"v\">V</button> <button class=\"key\" data-key=\"b\">B</button> <button class=\"key\" data-key=\"n\">N</button> <button class=\"key\" data-key=\"m\">M</button>\n"
+"<button class=\"key\" data-key=\",\">,</button> <button class=\"key\" data-key=\".\">.</button> <button class=\"key\" data-key=\"/\">/</button>\n"
+"<button class=\"key key-special\" id=\"ctrlBtn\">Ctrl</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-space\" data-key=\" \">空格</button>\n"
+"<button class=\"key key-ime\" data-special=\"ctrlspace\">中/英</button>\n"
+"</div>\n"
+"<!-- 方向键行 -->\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-arrow\" data-special=\"up\">↑</button>\n"
+"<button class=\"key key-arrow\" data-special=\"down\">↓</button>\n"
+"<button class=\"key key-arrow\" data-special=\"left\">←</button>\n"
+"<button class=\"key key-arrow\" data-special=\"right\">→</button>\n"
+"</div>\n"
+"<!-- 组合键行 -->\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_c\">Ctrl+C</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_v\">Ctrl+V</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_x\">Ctrl+X</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_z\">Ctrl+Z</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_a\">Ctrl+A</button>\n"
+"</div>\n"
+"<div class=\"row\">\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_alt_del\">Ctrl+Alt+Del</button>\n"
+"<button class=\"key key-combo\" data-combo=\"ctrl_shift_esc\">Ctrl+Shift+Esc</button>\n"
+"<button class=\"key key-combo\" data-combo=\"alt_tab\">Alt+Tab</button>\n"
+"<button class=\"key key-combo\" data-combo=\"win_r\">Win+R</button>\n"
+"<button class=\"key key-combo\" data-combo=\"win_e\">Win+E</button>\n"
+"<button class=\"key key-combo\" data-combo=\"win_d\">Win+D</button>\n"
+"</div>\n"
+"</div>\n"
+"<div id=\"mouse\" class=\"tab-content\">\n"
+"<div class=\"touchpad\">\n"
+"<div>屏幕分辨率设置</div>\n"
+"<input id=\"sw\" value=\"1920\" style=\"width:80px\"> × <input id=\"sh\" value=\"1080\" style=\"width:80px\">\n"
+"<button class=\"btn\" id=\"setResBtn\">设置并重置光标</button>\n"
+"<div class=\"touchpad-area\" id=\"touchpadArea\">\n"
+"<div>👉 在此区域拖动 👈<br>鼠标光标跟随移动</div>\n"
+"</div>\n"
+"<div class=\"coord\">当前光标: <span id=\"coordX\">960</span>, <span id=\"coordY\">540</span></div>\n"
+"<div style=\"margin-top:15px\">\n"
+"<button class=\"key mouse-btn\" id=\"leftClick\">左键单击</button>\n"
+"<button class=\"key mouse-btn\" id=\"rightClick\">右键单击</button>\n"
+"<button class=\"key mouse-btn\" id=\"centerClick\">中键单击</button>\n"
+"<button class=\"key mouse-btn\" id=\"resetCenter\">重置到中心</button>\n"
+"</div>\n"
+"<div style=\"margin-top:15px\">\n"
+"<button class=\"btn btn-warning\" id=\"lockLeftBtn\">🔒 左键锁定 (拖拽模式)</button>\n"
+"<button class=\"btn btn-danger\" id=\"unlockLeftBtn\" style=\"display:none;\">🔓 释放左键</button>\n"
+"</div>\n"
+"<div class=\"status\">灵敏度: <input id=\"sensitivity\" type=\"range\" min=\"0.5\" max=\"3\" step=\"0.1\" value=\"1.5\"> <span id=\"sensVal\">1.5</span></div>\n"
+"<div class=\"status\" id=\"lockStatus\" style=\"color:#ff9800;\">⚪ 左键未锁定</div>\n"
+"</div>\n"
+"</div>\n"
+"<div id=\"text\" class=\"tab-content\">\n"
+"<textarea id=\"textInput\" rows=\"4\" placeholder=\"输入文本（支持中文），点击发送...\"></textarea>\n"
+"<button class=\"btn\" id=\"sendTextBtn\">发送文本</button>\n"
+"<div class=\"status\">※ 中文输入方案：Alt+十六进制（需开启注册表EnableHexNumpad）</div>\n"
+"</div>\n"
+"<div style=\"text-align: center; margin-top: 20px;\">\n"
+"<a href=\"/\" class=\"home-link\">🏠 返回首页</a>\n"
+"</div>\n"
+"</div>\n"
+"<script>\n"
+"let shiftActive = false;\n"
+"let currentX = 960, currentY = 540;\n"
+"let screenW = 1920, screenH = 1080;\n"
+"let dragging = false;\n"
+"let lastX = 0, lastY = 0;\n"
+"let sensitivity = 1.5;\n"
+"let leftLockActive = false;\n"
+"// 节流相关变量\n"
+"let moveThrottleTimer = null;\n"
+"let pendingMoveX = null, pendingMoveY = null;\n"
+"\n"
+"document.querySelectorAll('.tab-btn').forEach(btn => {\n"
+"  btn.onclick = () => {\n"
+"    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));\n"
+"    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));\n"
+"    btn.classList.add('active');\n"
+"    document.getElementById(btn.dataset.tab).classList.add('active');\n"
+"  };\n"
+"});\n"
+"\n"
+"async function sendKey(value, isSpecial) {\n"
+"  let url = isSpecial ? `/special?key=${value}` : `/key?char=${encodeURIComponent(value)}`;\n"
+"  try { await fetch(url); } catch(e) { console.error(e); }\n"
+"}\n"
+"\n"
+"document.querySelectorAll('.key[data-key]').forEach(btn => {\n"
+"  let k = btn.dataset.key;\n"
+"  if (k && k.length===1 && /[a-z]/i.test(k)) {\n"
+"    btn.onclick = () => { let ch = shiftActive ? k.toUpperCase() : k; shiftActive=false; document.getElementById('shiftBtn').classList.remove('key-shift-active'); sendKey(ch, false); };\n"
+"  } else if (k) btn.onclick = () => sendKey(k, false);\n"
+"});\n"
+"document.querySelectorAll('.key[data-special]').forEach(btn => {\n"
+"  btn.onclick = () => sendKey(btn.dataset.special, true);\n"
+"});\n"
+"// 新增组合键按钮处理\n"
+"document.querySelectorAll('.key[data-combo]').forEach(btn => {\n"
+"  btn.onclick = () => sendKey(btn.dataset.combo, true);\n"
+"});\n"
+"document.getElementById('shiftBtn').onclick = () => { shiftActive = !shiftActive; document.getElementById('shiftBtn').classList.toggle('key-shift-active', shiftActive); };\n"
+"document.getElementById('ctrlBtn').onclick = () => sendKey('ctrl', true);\n"
+"\n"
+"// 实际发送移动请求（带节流）\n"
+"function flushMove() {\n"
+"  if (pendingMoveX !== null && pendingMoveY !== null) {\n"
+"    let x = pendingMoveX, y = pendingMoveY;\n"
+"    pendingMoveX = pendingMoveY = null;\n"
+"    let url = leftLockActive ? `/mouse_move_locked?x=${Math.round(x)}&y=${Math.round(y)}` : `/mouse_move?x=${Math.round(x)}&y=${Math.round(y)}`;\n"
+"    fetch(url).catch(e => console.error(e));\n"
+"  }\n"
+"  moveThrottleTimer = null;\n"
+"}\n"
+"\n"
+"async function moveMouseTo(x, y, forceLeftPress = null) {\n"
+"  x = Math.min(screenW, Math.max(0, x));\n"
+"  y = Math.min(screenH, Math.max(0, y));\n"
+"  currentX = x; currentY = y;\n"
+"  document.getElementById('coordX').innerText = Math.round(x);\n"
+"  document.getElementById('coordY').innerText = Math.round(y);\n"
+"  pendingMoveX = x;\n"
+"  pendingMoveY = y;\n"
+"  if (moveThrottleTimer === null) {\n"
+"    moveThrottleTimer = setTimeout(flushMove, 16);\n"
+"  }\n"
+"}\n"
+"\n"
+"async function clickMouse(btn) {\n"
+"  if (moveThrottleTimer) {\n"
+"    clearTimeout(moveThrottleTimer);\n"
+"    flushMove();\n"
+"  }\n"
+"  await fetch(`/mouse_click?btn=${btn}&x=${Math.round(currentX)}&y=${Math.round(currentY)}`);\n"
+"}\n"
+"\n"
+"function enableLeftLock() {\n"
+"  leftLockActive = true;\n"
+"  document.getElementById('lockLeftBtn').style.display = 'none';\n"
+"  document.getElementById('unlockLeftBtn').style.display = 'inline-block';\n"
+"  document.getElementById('lockStatus').innerHTML = '🔒 左键已锁定 (拖拽模式中)';\n"
+"  document.getElementById('lockStatus').style.color = '#ff9800';\n"
+"  fetch(`/mouse_press_left`);\n"
+"}\n"
+"\n"
+"function disableLeftLock() {\n"
+"  leftLockActive = false;\n"
+"  document.getElementById('lockLeftBtn').style.display = 'inline-block';\n"
+"  document.getElementById('unlockLeftBtn').style.display = 'none';\n"
+"  document.getElementById('lockStatus').innerHTML = '⚪ 左键未锁定';\n"
+"  document.getElementById('lockStatus').style.color = '#ccc';\n"
+"  fetch(`/mouse_release_left`);\n"
+"}\n"
+"\n"
+"document.getElementById('lockLeftBtn').onclick = enableLeftLock;\n"
+"document.getElementById('unlockLeftBtn').onclick = disableLeftLock;\n"
+"\n"
+"function setResolution() {\n"
+"  screenW = parseInt(document.getElementById('sw').value);\n"
+"  screenH = parseInt(document.getElementById('sh').value);\n"
+"  currentX = screenW/2;\n"
+"  currentY = screenH/2;\n"
+"  moveMouseTo(currentX, currentY, false);\n"
+"  fetch(`/set_res?w=${screenW}&h=${screenH}`);\n"
+"}\n"
+"document.getElementById('setResBtn').onclick = setResolution;\n"
+"document.getElementById('resetCenter').onclick = () => moveMouseTo(screenW/2, screenH/2, false);\n"
+"document.getElementById('leftClick').onclick = () => clickMouse(1);\n"
+"document.getElementById('rightClick').onclick = () => clickMouse(2);\n"
+"document.getElementById('centerClick').onclick = () => clickMouse(4);\n"
+"\n"
+"const touchArea = document.getElementById('touchpadArea');\n"
+"const sensSlider = document.getElementById('sensitivity');\n"
+"const sensVal = document.getElementById('sensVal');\n"
+"sensSlider.oninput = () => { sensitivity = parseFloat(sensSlider.value); sensVal.innerText = sensitivity; };\n"
+"\n"
+"function handleDragStart(e) {\n"
+"  dragging = true;\n"
+"  let clientX, clientY;\n"
+"  if (e.touches) {\n"
+"    clientX = e.touches[0].clientX;\n"
+"    clientY = e.touches[0].clientY;\n"
+"    e.preventDefault();\n"
+"  } else {\n"
+"    clientX = e.clientX;\n"
+"    clientY = e.clientY;\n"
+"  }\n"
+"  lastX = clientX;\n"
+"  lastY = clientY;\n"
+"  touchArea.style.cursor = 'grabbing';\n"
+"}\n"
+"\n"
+"function handleDragMove(e) {\n"
+"  if (!dragging) return;\n"
+"  let clientX, clientY;\n"
+"  if (e.touches) {\n"
+"    clientX = e.touches[0].clientX;\n"
+"    clientY = e.touches[0].clientY;\n"
+"    e.preventDefault();\n"
+"  } else {\n"
+"    clientX = e.clientX;\n"
+"    clientY = e.clientY;\n"
+"  }\n"
+"  let dx = (clientX - lastX) * sensitivity;\n"
+"  let dy = (clientY - lastY) * sensitivity;\n"
+"  if (dx !== 0 || dy !== 0) {\n"
+"    let newX = currentX + dx;\n"
+"    let newY = currentY + dy;\n"
+"    moveMouseTo(newX, newY, null);\n"
+"  }\n"
+"  lastX = clientX;\n"
+"  lastY = clientY;\n"
+"}\n"
+"\n"
+"function handleDragEnd(e) {\n"
+"  dragging = false;\n"
+"  touchArea.style.cursor = 'crosshair';\n"
+"  if (moveThrottleTimer) {\n"
+"    clearTimeout(moveThrottleTimer);\n"
+"    flushMove();\n"
+"  }\n"
+"}\n"
+"\n"
+"touchArea.addEventListener('mousedown', handleDragStart);\n"
+"window.addEventListener('mousemove', handleDragMove);\n"
+"window.addEventListener('mouseup', handleDragEnd);\n"
+"touchArea.addEventListener('touchstart', handleDragStart);\n"
+"window.addEventListener('touchmove', handleDragMove);\n"
+"window.addEventListener('touchend', handleDragEnd);\n"
+"touchArea.style.touchAction = 'none';\n"
+"touchArea.style.cursor = 'crosshair';\n"
+"\n"
+"document.getElementById('sendTextBtn').onclick = async () => {\n"
+"  let text = document.getElementById('textInput').value;\n"
+"  if (!text) return;\n"
+"  let resp = await fetch('/text', { method:'POST', headers:{'Content-Type':'text/plain'}, body:text });\n"
+"  alert(resp.ok ? '文本发送完成' : '发送失败');\n"
+"};\n"
+"\n"
+"setResolution();\n"
+"</script>\n"
+"</body>\n"
+"</html>\n";
+
+// ==================== MAC 配置函数实现 ====================
+void resetConfig() {
+  config.magic = CONFIG_MAGIC;
+  strcpy(config.ap_ssid, DEFAULT_AP_SSID);
+  strcpy(config.ap_password, DEFAULT_AP_PASSWORD);
+  memset(config.sta_ssid, 0, sizeof(config.sta_ssid));
+  memset(config.sta_password, 0, sizeof(config.sta_password));
+  memcpy(config.mac, DEFAULT_MAC, 6);
+  config.sta_configured = false;
+  config.ap_configured = true;
+  saveConfig();
+  WiFi.disconnect(true);
+  WiFi.persistent(false);
+}
+
+void loadConfig() {
+  EEPROM.get(0, config);
+  if (config.magic != CONFIG_MAGIC || !config.ap_configured) {
+    config.magic = CONFIG_MAGIC;
+    strcpy(config.ap_ssid, "KeyAndMAC");
+    strcpy(config.ap_password, "abcd1234");
+    memset(config.sta_ssid, 0, sizeof(config.sta_ssid));
+    memset(config.sta_password, 0, sizeof(config.sta_password));
+    memset(config.mac, 0, sizeof(config.mac));
+    config.sta_configured = false;
+    config.ap_configured = true;
+    saveConfig();
+  }
+}
+
+void saveConfig() {
+  EEPROM.put(0, config);
+  EEPROM.commit();
+}
+
+void setAPMAC() {
+  bool macIsZero = true;
+  for (int i = 0; i < 6; i++) {
+    if (config.mac[i] != 0x00) {
+      macIsZero = false;
+      break;
+    }
+  }
+  if (!macIsZero) {
+    wifi_set_macaddr(SOFTAP_IF, config.mac);
+    delay(500);
+  }
+}
+
+void restartAP() {
+  WiFi.softAPdisconnect(true);
+  delay(100);
+  WiFi.softAP(config.ap_ssid, config.ap_password);
+}
+
+void connectToWiFi() {
+  if (!config.sta_configured || strlen(config.sta_ssid) == 0) return;
+  WiFi.begin(config.sta_ssid, config.sta_password);
+  unsigned long startTime = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startTime < 20000) delay(500);
+  sta_connected = (WiFi.status() == WL_CONNECTED);
+  if (!sta_connected) WiFi.disconnect();
+}
+
+String macToString(uint8_t* mac) {
+  char macStr[18];
+  snprintf(macStr, 18, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  return String(macStr);
+}
+
+String bssidToString(uint8_t* bssid) {
+  char bssidStr[18];
+  snprintf(bssidStr, 18, "%02X:%02X:%02X:%02X:%02X:%02X", bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+  return String(bssidStr);
+}
+
+bool parseMAC(const String& macStr, uint8_t* mac) {
+  String clean = macStr;
+  clean.replace(":", "");
+  clean.replace(" ", "");
+  clean.replace("-", "");
+  clean.toUpperCase();
+  if (clean.length() != 12) return false;
+  for (int i = 0; i < 12; i++) {
+    char c = clean[i];
+    if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'))) return false;
+  }
+  for (int i = 0; i < 6; i++) {
+    String byteStr = clean.substring(i*2, i*2+2);
+    mac[i] = strtol(byteStr.c_str(), NULL, 16);
+  }
+  return true;
+}
+
+String getEncryptionTypeStr(uint8_t encryptionType) {
+  switch(encryptionType) {
+    case ENC_TYPE_NONE: return "开放网络";
+    case ENC_TYPE_WEP: return "WEP";
+    case ENC_TYPE_TKIP: return "WPA";
+    case ENC_TYPE_CCMP: return "WPA2";
+    default: return "未知";
+  }
+}
+
+void sortNetworksByRSSI(int* indices, int n) {
+  for (int i = 0; i < n-1; i++)
+    for (int j = i+1; j < n; j++)
+      if (WiFi.RSSI(indices[j]) > WiFi.RSSI(indices[i])) {
+        int t = indices[i]; indices[i] = indices[j]; indices[j] = t;
+      }
+}
+
+String getSignalStrengthClass(int rssi) {
+  if (rssi >= -50) return "signal-strong";
+  else if (rssi >= -70) return "signal-medium";
+  else return "signal-weak";
+}
+
+void checkWiFiStatus() {
+  if (WiFi.status() != WL_CONNECTED && sta_connected) sta_connected = false;
+  else if (WiFi.status() == WL_CONNECTED && !sta_connected) sta_connected = true;
+}
+
+// ==================== 虚拟键盘鼠标函数实现（优化延迟 + 组合键 + 方向键） ====================
+int screenWidth = 1920;
+int screenHeight = 1080;
+int currentMouseX = 960;
+int currentMouseY = 540;
+int chineseInputMethod = 3;
+
+// 键盘键码定义
+#define KEY_A       0x04
+#define KEY_B       0x05
+#define KEY_C       0x06
+#define KEY_D       0x07
+#define KEY_E       0x08
+#define KEY_F       0x09
+#define KEY_G       0x0A
+#define KEY_H       0x0B
+#define KEY_I       0x0C
+#define KEY_J       0x0D
+#define KEY_K       0x0E
+#define KEY_L       0x0F
+#define KEY_M       0x10
+#define KEY_N       0x11
+#define KEY_O       0x12
+#define KEY_P       0x13
+#define KEY_Q       0x14
+#define KEY_R       0x15
+#define KEY_S       0x16
+#define KEY_T       0x17
+#define KEY_U       0x18
+#define KEY_V       0x19
+#define KEY_W       0x1A
+#define KEY_X       0x1B
+#define KEY_Y       0x1C
+#define KEY_Z       0x1D
+#define KEY_1       0x1E
+#define KEY_2       0x1F
+#define KEY_3       0x20
+#define KEY_4       0x21
+#define KEY_5       0x22
+#define KEY_6       0x23
+#define KEY_7       0x24
+#define KEY_8       0x25
+#define KEY_9       0x26
+#define KEY_0       0x27
+#define KEY_ENTER   0x28
+#define KEY_ESC     0x29
+#define KEY_BACKSPACE 0x2A
+#define KEY_TAB     0x2B
+#define KEY_SPACE   0x2C
+#define KEY_MINUS   0x2D
+#define KEY_EQUAL   0x2E
+#define KEY_LEFT_BRACKET  0x2F
+#define KEY_RIGHT_BRACKET 0x30
+#define KEY_BACKSLASH     0x31
+#define KEY_SEMICOLON     0x33
+#define KEY_QUOTE         0x34
+#define KEY_GRAVE         0x35
+#define KEY_COMMA   0x36
+#define KEY_PERIOD  0x37
+#define KEY_SLASH   0x38
+#define KEY_KP_PLUS 0x57
+#define KEY_KP_0    0x62
+#define KEY_KP_1    0x59
+#define KEY_KP_2    0x5A
+#define KEY_KP_3    0x5B
+#define KEY_KP_4    0x5C
+#define KEY_KP_5    0x5D
+#define KEY_KP_6    0x5E
+#define KEY_KP_7    0x5F
+#define KEY_KP_8    0x60
+#define KEY_KP_9    0x61
+#define KEY_DELETE  0x4C
+// 方向键码
+#define KEY_UP      0x52
+#define KEY_DOWN    0x51
+#define KEY_LEFT    0x50
+#define KEY_RIGHT   0x4F
+
+// 修饰符定义
+#define MOD_LEFT_CTRL   0x01
+#define MOD_LEFT_SHIFT  0x02
+#define MOD_LEFT_ALT    0x04
+#define MOD_LEFT_GUI    0x08  // Windows键
+
+void screenToChip(int screenX, int screenY, uint8_t &lowX, uint8_t &highX, uint8_t &lowY, uint8_t &highY) {
+  uint16_t chipX = (uint32_t)screenX * 4096 / screenWidth;
+  uint16_t chipY = (uint32_t)screenY * 4096 / screenHeight;
+  lowX = chipX & 0xFF;
+  highX = (chipX >> 8) & 0xFF;
+  lowY = chipY & 0xFF;
+  highY = (chipY >> 8) & 0xFF;
+}
+
+void sendAbsoluteMouse(uint8_t buttons, int screenX, int screenY, uint8_t wheel) {
+  if (screenX < 0) screenX = 0;
+  if (screenX > screenWidth) screenX = screenWidth;
+  if (screenY < 0) screenY = 0;
+  if (screenY > screenHeight) screenY = screenHeight;
+  uint8_t lowX, highX, lowY, highY;
+  screenToChip(screenX, screenY, lowX, highX, lowY, highY);
+  uint8_t packet[13];
+  packet[0] = 0x57;
+  packet[1] = 0xAB;
+  packet[2] = 0x00;
+  packet[3] = 0x04;
+  packet[4] = 0x07;
+  packet[5] = 0x02;
+  packet[6] = buttons;
+  packet[7] = lowX;
+  packet[8] = highX;
+  packet[9] = lowY;
+  packet[10] = highY;
+  packet[11] = wheel;
+  uint8_t sum = 0;
+  for (int i = 0; i < 12; i++) sum += packet[i];
+  packet[12] = sum;
+  CH9329_SERIAL.write(packet, 13);
+  delay(2);
+}
+
+void mouseMoveWithButton(int x, int y, bool leftPressed) {
+  currentMouseX = x;
+  currentMouseY = y;
+  uint8_t btn = leftPressed ? 0x01 : 0x00;
+  sendAbsoluteMouse(btn, currentMouseX, currentMouseY, 0x00);
+}
+
+void mouseMove(int x, int y) { mouseMoveWithButton(x, y, false); }
+
+void mouseClick(uint8_t btn, int x, int y) {
+  sendAbsoluteMouse(btn, x, y, 0x00);
+  delay(30);
+  sendAbsoluteMouse(0x00, x, y, 0x00);
+}
+
+void sendKeyboardReport(uint8_t modifier, uint8_t keycode) {
+  uint8_t packet[14];
+  packet[0] = 0x57;
+  packet[1] = 0xAB;
+  packet[2] = 0x00;
+  packet[3] = 0x02;
+  packet[4] = 0x08;
+  packet[5] = modifier;
+  packet[6] = 0x00;
+  packet[7] = keycode;
+  packet[8] = 0x00;
+  packet[9] = 0x00;
+  packet[10] = 0x00;
+  packet[11] = 0x00;
+  packet[12] = 0x00;
+  uint8_t sum = 0;
+  for (int i = 0; i < 13; i++) sum += packet[i];
+  packet[13] = sum;
+  CH9329_SERIAL.write(packet, 14);
+  delay(2);
+}
+
+void sendSingleKey(uint8_t modifier, uint8_t keycode) {
+  sendKeyboardReport(modifier, keycode);
+  sendKeyboardReport(0x00, 0x00);
+  delay(5);
+}
+
+// 发送组合键（按下修饰符+主键，然后释放）
+void sendCombination(uint8_t modifier, uint8_t keycode) {
+  sendKeyboardReport(modifier, keycode);
+  delay(10);
+  sendKeyboardReport(0x00, 0x00);
+  delay(10);
+}
+
+void sendChar(char ch) {
+  uint8_t modifier = 0x00, keycode = 0x00;
+  if (ch >= 'a' && ch <= 'z') {
+    keycode = ch - 'a' + KEY_A;
+  } else if (ch >= 'A' && ch <= 'Z') {
+    modifier = MOD_LEFT_SHIFT;
+    keycode = ch - 'A' + KEY_A;
+  } else if (ch >= '0' && ch <= '9') {
+    keycode = (ch == '0') ? KEY_0 : KEY_1 + (ch - '1');
+  } else {
+    switch(ch) {
+      case ' ': keycode = KEY_SPACE; break;
+      case '\n': case '\r': keycode = KEY_ENTER; break;
+      case '\t': keycode = KEY_TAB; break;
+      case '-': keycode = KEY_MINUS; break;
+      case '=': keycode = KEY_EQUAL; break;
+      case '[': keycode = KEY_LEFT_BRACKET; break;
+      case ']': keycode = KEY_RIGHT_BRACKET; break;
+      case '\\': keycode = KEY_BACKSLASH; break;
+      case ';': keycode = KEY_SEMICOLON; break;
+      case '\'': keycode = KEY_QUOTE; break;
+      case '`': keycode = KEY_GRAVE; break;
+      case ',': keycode = KEY_COMMA; break;
+      case '.': keycode = KEY_PERIOD; break;
+      case '/': keycode = KEY_SLASH; break;
+      case '!': modifier = MOD_LEFT_SHIFT; keycode = KEY_1; break;
+      case '@': modifier = MOD_LEFT_SHIFT; keycode = KEY_2; break;
+      case '#': modifier = MOD_LEFT_SHIFT; keycode = KEY_3; break;
+      case '$': modifier = MOD_LEFT_SHIFT; keycode = KEY_4; break;
+      case '%': modifier = MOD_LEFT_SHIFT; keycode = KEY_5; break;
+      case '^': modifier = MOD_LEFT_SHIFT; keycode = KEY_6; break;
+      case '&': modifier = MOD_LEFT_SHIFT; keycode = KEY_7; break;
+      case '*': modifier = MOD_LEFT_SHIFT; keycode = KEY_8; break;
+      case '(': modifier = MOD_LEFT_SHIFT; keycode = KEY_9; break;
+      case ')': modifier = MOD_LEFT_SHIFT; keycode = KEY_0; break;
+      case '_': modifier = MOD_LEFT_SHIFT; keycode = KEY_MINUS; break;
+      case '+': modifier = MOD_LEFT_SHIFT; keycode = KEY_EQUAL; break;
+      case '{': modifier = MOD_LEFT_SHIFT; keycode = KEY_LEFT_BRACKET; break;
+      case '}': modifier = MOD_LEFT_SHIFT; keycode = KEY_RIGHT_BRACKET; break;
+      case '|': modifier = MOD_LEFT_SHIFT; keycode = KEY_BACKSLASH; break;
+      case ':': modifier = MOD_LEFT_SHIFT; keycode = KEY_SEMICOLON; break;
+      case '"': modifier = MOD_LEFT_SHIFT; keycode = KEY_QUOTE; break;
+      case '~': modifier = MOD_LEFT_SHIFT; keycode = KEY_GRAVE; break;
+      case '<': modifier = MOD_LEFT_SHIFT; keycode = KEY_COMMA; break;
+      case '>': modifier = MOD_LEFT_SHIFT; keycode = KEY_PERIOD; break;
+      case '?': modifier = MOD_LEFT_SHIFT; keycode = KEY_SLASH; break;
+      default: return;
+    }
+  }
+  if (keycode) sendSingleKey(modifier, keycode);
+}
+
+void sendUnicodeChar_Hex(uint32_t codepoint) {
+  char hex[9];
+  snprintf(hex, sizeof(hex), "%X", codepoint);
+  sendKeyboardReport(MOD_LEFT_ALT, 0x00);
+  delay(50);
+  sendKeyboardReport(MOD_LEFT_ALT, KEY_KP_PLUS);
+  sendKeyboardReport(MOD_LEFT_ALT, 0x00);
+  delay(30);
+  for (char* p = hex; *p; p++) {
+    char c = *p;
+    uint8_t modifier = MOD_LEFT_ALT;
+    uint8_t keycode = 0;
+    if (c >= '0' && c <= '9') {
+      switch(c) {
+        case '0': keycode = KEY_KP_0; break;
+        case '1': keycode = KEY_KP_1; break;
+        case '2': keycode = KEY_KP_2; break;
+        case '3': keycode = KEY_KP_3; break;
+        case '4': keycode = KEY_KP_4; break;
+        case '5': keycode = KEY_KP_5; break;
+        case '6': keycode = KEY_KP_6; break;
+        case '7': keycode = KEY_KP_7; break;
+        case '8': keycode = KEY_KP_8; break;
+        case '9': keycode = KEY_KP_9; break;
+      }
+    } else if (c >= 'A' && c <= 'F') {
+      modifier |= MOD_LEFT_SHIFT;
+      keycode = KEY_A + (c - 'A');
+    } else continue;
+    sendKeyboardReport(modifier, keycode);
+    sendKeyboardReport(modifier, 0x00);
+    delay(20);
+  }
+  sendKeyboardReport(0, 0x00);
+  delay(40);
+}
+
+void sendUnicodeChar_LocationCode(uint32_t codepoint) {
+  if (codepoint < 0x4E00 || codepoint > 0x9FA5) {
+    sendUnicodeChar_Hex(codepoint);
+    return;
+  }
+  uint16_t offset = codepoint - 0x4E00;
+  uint8_t qu = offset / 94 + 16;
+  uint8_t wei = offset % 94 + 1;
+  char locCode[5];
+  sprintf(locCode, "%02d%02d", qu, wei);
+  sendKeyboardReport(MOD_LEFT_CTRL, 0x00);
+  sendKeyboardReport(MOD_LEFT_CTRL, KEY_LEFT_BRACKET);
+  sendKeyboardReport(MOD_LEFT_CTRL, 0x00);
+  sendKeyboardReport(0x00, 0x00);
+  delay(80);
+  for (char* p = locCode; *p; p++) {
+    uint8_t keycode = KEY_1 + (*p - '1');
+    if (*p == '0') keycode = KEY_0;
+    sendSingleKey(0x00, keycode);
+    delay(20);
+  }
+  sendSingleKey(0x00, KEY_ENTER);
+  delay(80);
+}
+
+void sendText(const String& text) {
+  if (chineseInputMethod == 0) {
+    for (size_t i = 0; i < text.length(); i++) {
+      char ch = text[i];
+      if (ch >= 0x20 && ch <= 0x7E) sendChar(ch);
+      else if (ch == '\n') sendChar('\n');
+      delay(15);
+    }
+    return;
+  }
+  for (size_t i = 0; i < text.length(); i++) {
+    char ch = text[i];
+    if (ch & 0x80) {
+      uint32_t codepoint = 0;
+      int bytes = 0;
+      if ((ch & 0xE0) == 0xC0) { bytes = 2; codepoint = ch & 0x1F; }
+      else if ((ch & 0xF0) == 0xE0) { bytes = 3; codepoint = ch & 0x0F; }
+      else if ((ch & 0xF8) == 0xF0) { bytes = 4; codepoint = ch & 0x07; }
+      else continue;
+      for (int j = 1; j < bytes && i+j < text.length(); j++) {
+        uint8_t next = text[i+j];
+        if ((next & 0xC0) != 0x80) break;
+        codepoint = (codepoint << 6) | (next & 0x3F);
+      }
+      if (chineseInputMethod == 1) sendUnicodeChar_Hex(codepoint);
+      else if (chineseInputMethod == 2) sendUnicodeChar_LocationCode(codepoint);
+      else if (chineseInputMethod == 3) sendUnicodeChar_Hex(codepoint);
+      i += bytes - 1;
+    } else {
+      sendChar(ch);
+    }
+    delay(20);
+  }
+}
+
+// ==================== Web 路由处理 ====================
+void handleRoot() { server.send(200, "text/html", navHtml); }
+
+void handleMacPage() {
+  String page = macPageTemplate;
+  page.replace("%AP_SSID%", config.ap_ssid);
+  page.replace("%AP_PASSWORD%", config.ap_password);
+  page.replace("%AP_IP%", WiFi.softAPIP().toString());
+  page.replace("%AP_MAC%", WiFi.softAPmacAddress());
+  page.replace("%STA_SSID%", config.sta_ssid);
+  page.replace("%STA_PASSWORD%", config.sta_password);
+  page.replace("%CURRENT_MAC%", macToString(config.mac));
+  if (sta_connected) {
+    page.replace("%STA_STATUS%", "已连接");
+    String staDetails = "连接网络: " + String(config.sta_ssid) + "<br>" +
+                       "STA IP: " + WiFi.localIP().toString() + "<br>" +
+                       "信号强度: <span class='" + getSignalStrengthClass(WiFi.RSSI()) + "'>" + String(WiFi.RSSI()) + " dBm</span>";
+    page.replace("%STA_DETAILS%", staDetails);
+  } else if (config.sta_configured) {
+    page.replace("%STA_STATUS%", "连接失败");
+    page.replace("%STA_DETAILS%", "保存的网络: " + String(config.sta_ssid));
+  } else {
+    page.replace("%STA_STATUS%", "未配置");
+    page.replace("%STA_DETAILS%", "");
+  }
+  server.send(200, "text/html; charset=utf-8", page);
+}
+
+void handleSave() {
+  String type = server.arg("type");
+  if (type == "ap") {
+    String ap_ssid = server.arg("ap_ssid");
+    String ap_password = server.arg("ap_password");
+    if (ap_ssid.length() > 0 && ap_ssid.length() <= 31) {
+      ap_ssid.toCharArray(config.ap_ssid, sizeof(config.ap_ssid));
+      ap_password.toCharArray(config.ap_password, sizeof(config.ap_password));
+      saveConfig();
+      restartAP();
+      server.send(200, "text/html; charset=utf-8", "<script>alert('AP设置已保存，热点已重启');window.location='/mac';</script>");
+    } else {
+      server.send(200, "text/html; charset=utf-8", "<script>alert('AP名称长度必须在1-31个字符之间');window.location='/mac';</script>");
+    }
+  }
+  else if (type == "wifi") {
+    String sta_ssid = server.arg("sta_ssid");
+    String sta_password = server.arg("sta_password");
+    if (sta_ssid.length() > 0 && sta_ssid.length() <= 31) {
+      sta_ssid.toCharArray(config.sta_ssid, sizeof(config.sta_ssid));
+      sta_password.toCharArray(config.sta_password, sizeof(config.sta_password));
+      config.sta_configured = true;
+      saveConfig();
+      connectToWiFi();
+      server.send(200, "text/html; charset=utf-8", "<script>alert('WiFi设置已保存');window.location='/mac';</script>");
+    } else {
+      server.send(200, "text/html; charset=utf-8", "<script>alert('WiFi名称长度必须在1-31个字符之间');window.location='/mac';</script>");
+    }
+  }
+  else if (type == "mac") {
+    String macStr = server.arg("mac_address");
+    macStr.trim();
+    if (macStr.length() == 0) {
+      memcpy(config.mac, DEFAULT_MAC, 6);
+      saveConfig();
+      setAPMAC();
+      server.send(200, "text/html; charset=utf-8", "<script>alert('已恢复默认MAC地址');window.location='/mac';</script>");
+    } else if (parseMAC(macStr, config.mac)) {
+      saveConfig();
+      setAPMAC();
+      server.send(200, "text/html; charset=utf-8", "<script>alert('MAC地址已保存');window.location='/mac';</script>");
+    } else {
+      server.send(200, "text/html; charset=utf-8", "<script>alert('MAC地址格式错误，请使用格式: 06:69:6C:45:CA:21');window.location='/mac';</script>");
+    }
+  }
+}
+
+void handleScan() {
+  String page = "<!DOCTYPE html><html><head><title>WiFi扫描</title><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  page += "<style>body{font-family:Arial,'Microsoft YaHei',sans-serif;margin:0;padding:20px;background:#f5f5f5;}.container{max-width:100%;margin:0 auto;background:white;padding:20px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);}.network-item{padding:10px;border-bottom:1px solid #eee;}.select-btn{background:#007cba;color:white;padding:5px 10px;text-decoration:none;border-radius:3px;}.signal-strong{color:#28a745;}.signal-medium{color:#ffc107;}.signal-weak{color:#dc3545;}</style></head><body>";
+  page += "<div class='container'><h1>可用WiFi网络</h1>";
+  int n = WiFi.scanNetworks();
+  if (n == 0) {
+    page += "<p>未找到WiFi网络</p>";
+  } else {
+    int indices[n];
+    for (int i = 0; i < n; i++) indices[i] = i;
+    sortNetworksByRSSI(indices, n);
+    page += "<p>找到 " + String(n) + " 个网络:</p>";
+    for (int i = 0; i < n; i++) {
+      int idx = indices[i];
+      String ssid = WiFi.SSID(idx);
+      if (ssid.length() == 0) ssid = "(隐藏网络)";
+      page += "<div class='network-item'>";
+      page += "<strong>" + ssid + "</strong><br>";
+      page += "信号: <span class='" + getSignalStrengthClass(WiFi.RSSI(idx)) + "'>" + String(WiFi.RSSI(idx)) + " dBm</span> | ";
+      page += getEncryptionTypeStr(WiFi.encryptionType(idx)) + "<br>";
+      page += "MAC: <span style='font-family:monospace;background:#f8f9fa;padding:2px 5px;border-radius:3px;'>" + bssidToString(WiFi.BSSID(idx)) + "</span><br>";
+      page += "<a href='javascript:void(0)' onclick=\"selectSSID('" + ssid + "')\" class='select-btn'>选择</a>";
+      page += "</div>";
+    }
+  }
+  page += "<br><a href='javascript:window.close()' style='background:#6c757d;color:white;padding:10px 15px;text-decoration:none;border-radius:5px;'>关闭</a>";
+  page += "</div><script>function selectSSID(ssid){window.opener.document.getElementById('sta_ssid').value=ssid;window.close();}</script>";
+  page += "</body></html>";
+  server.send(200, "text/html; charset=utf-8", page);
+}
+
+void handleScanMAC() {
+  String page = "";
+  int n = WiFi.scanNetworks();
+  if (n == 0) {
+    page += "<p>未找到WiFi网络</p>";
+  } else {
+    int indices[n];
+    for (int i = 0; i < n; i++) indices[i] = i;
+    sortNetworksByRSSI(indices, n);
+    for (int i = 0; i < n; i++) {
+      int idx = indices[i];
+      String ssid = WiFi.SSID(idx);
+      if (ssid.length() == 0) ssid = "(隐藏网络)";
+      page += "<div class='wifi-mac-item'>";
+      page += "<strong>" + ssid + "</strong><br>";
+      page += "信号: <span class='" + getSignalStrengthClass(WiFi.RSSI(idx)) + "'>" + String(WiFi.RSSI(idx)) + " dBm</span> | ";
+      page += getEncryptionTypeStr(WiFi.encryptionType(idx)) + "<br>";
+      page += "MAC: <span class='mac-display'>" + bssidToString(WiFi.BSSID(idx)) + "</span><br>";
+      page += "<button class='use-mac-btn' onclick='useMacAddress(\"" + bssidToString(WiFi.BSSID(idx)) + "\")'>使用此MAC</button>";
+      page += "</div>";
+    }
+  }
+  server.send(200, "text/html; charset=utf-8", page);
+}
+
+void handleStatus() {
+  String page = "<!DOCTYPE html><html><head><title>系统状态</title><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'></head><body>";
+  page += "<div style='max-width:100%;margin:0 auto;padding:20px;'><h1>系统状态</h1>";
+  page += "<h2>AP热点信息</h2>";
+  page += "<p><strong>SSID:</strong> " + String(config.ap_ssid) + "</p>";
+  page += "<p><strong>IP地址:</strong> " + WiFi.softAPIP().toString() + "</p>";
+  page += "<p><strong>MAC地址:</strong> <span style='font-family:monospace;background:#f8f9fa;padding:2px 5px;border-radius:3px;'>" + WiFi.softAPmacAddress() + "</span></p>";
+  page += "<p><strong>连接设备:</strong> " + String(WiFi.softAPgetStationNum()) + "</p>";
+  page += "<h2>WiFi连接信息</h2>";
+  if (sta_connected) {
+    page += "<p style='color:green;'><strong>状态:</strong> 已连接</p>";
+    page += "<p><strong>SSID:</strong> " + String(config.sta_ssid) + "</p>";
+    page += "<p><strong>IP地址:</strong> " + WiFi.localIP().toString() + "</p>";
+    page += "<p><strong>信号强度:</strong> <span class='" + getSignalStrengthClass(WiFi.RSSI()) + "'>" + String(WiFi.RSSI()) + " dBm</span></p>";
+  } else {
+    String statusText = config.sta_configured ? "连接失败" : "未配置";
+    String color = config.sta_configured ? "red" : "orange";
+    page += "<p style='color:" + color + ";'><strong>状态:</strong> " + statusText + "</p>";
+    if (config.sta_configured) page += "<p><strong>保存的网络:</strong> " + String(config.sta_ssid) + "</p>";
+  }
+  page += "<h2>MAC地址信息</h2>";
+  page += "<p><strong>当前MAC:</strong> <span style='font-family:monospace;background:#f8f9fa;padding:2px 5px;border-radius:3px;'>" + macToString(config.mac) + "</span></p>";
+  page += "<p><strong>默认MAC:</strong> <span style='font-family:monospace;background:#f8f9fa;padding:2px 5px;border-radius:3px;'>06:69:6C:45:CA:21</span></p>";
+  page += "<br><a href='/mac' style='background:#007cba;color:white;padding:10px 15px;text-decoration:none;border-radius:5px;'>返回配置</a>";
+  page += "</div></body></html>";
+  server.send(200, "text/html; charset=utf-8", page);
+}
+
+void handleReset() {
+  resetConfig();
+  server.send(200, "text/html; charset=utf-8", "<script>alert('已恢复默认设置');window.location='/mac';</script>");
+}
+
+void handleReboot() {
+  server.send(200, "text/html; charset=utf-8", "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><script>setTimeout(function(){window.location='/';},5000);</script></head><body style='text-align:center;padding:50px;'><h1>设备重启中...</h1><p>请等待设备重新启动</p></body></html>");
+  delay(1000);
+  ESP.restart();
+}
+
+void handleHidPage() { server.send(200, "text/html", hidPage); }
+
+void handleKey() {
+  if (!server.hasArg("char")) { server.send(400, "text/plain", "Missing char"); return; }
+  String ch = server.arg("char");
+  if (ch.length() != 1) { server.send(400, "text/plain", "Invalid char"); return; }
+  sendChar(ch[0]);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleSpecial() {
+  if (!server.hasArg("key")) { server.send(400, "text/plain", "Missing key"); return; }
+  String key = server.arg("key");
+  // 原有特殊键
+  if (key == "enter") sendSingleKey(0x00, KEY_ENTER);
+  else if (key == "backspace") sendSingleKey(0x00, KEY_BACKSPACE);
+  else if (key == "tab") sendSingleKey(0x00, KEY_TAB);
+  else if (key == "backslash") sendSingleKey(0x00, KEY_BACKSLASH);
+  else if (key == "shift") sendSingleKey(MOD_LEFT_SHIFT, 0x00);
+  else if (key == "ctrl") sendSingleKey(MOD_LEFT_CTRL, 0x00);
+  else if (key == "ctrlspace") sendSingleKey(MOD_LEFT_CTRL, KEY_SPACE);
+  // 方向键
+  else if (key == "up") sendSingleKey(0x00, KEY_UP);
+  else if (key == "down") sendSingleKey(0x00, KEY_DOWN);
+  else if (key == "left") sendSingleKey(0x00, KEY_LEFT);
+  else if (key == "right") sendSingleKey(0x00, KEY_RIGHT);
+  // 组合键
+  else if (key == "ctrl_c") sendCombination(MOD_LEFT_CTRL, KEY_C);
+  else if (key == "ctrl_v") sendCombination(MOD_LEFT_CTRL, KEY_V);
+  else if (key == "ctrl_x") sendCombination(MOD_LEFT_CTRL, KEY_X);
+  else if (key == "ctrl_z") sendCombination(MOD_LEFT_CTRL, KEY_Z);
+  else if (key == "ctrl_a") sendCombination(MOD_LEFT_CTRL, KEY_A);
+  else if (key == "ctrl_alt_del") sendCombination(MOD_LEFT_CTRL | MOD_LEFT_ALT, KEY_DELETE);
+  else if (key == "ctrl_shift_esc") sendCombination(MOD_LEFT_CTRL | MOD_LEFT_SHIFT, KEY_ESC);
+  else if (key == "alt_tab") sendCombination(MOD_LEFT_ALT, KEY_TAB);
+  else if (key == "win_r") sendCombination(MOD_LEFT_GUI, KEY_R);
+  else if (key == "win_e") sendCombination(MOD_LEFT_GUI, KEY_E);
+  else if (key == "win_d") sendCombination(MOD_LEFT_GUI, KEY_D);
+  else { server.send(400, "text/plain", "Unknown special"); return; }
+  server.send(200, "text/plain", "OK");
+}
+
+void handleMouseMove() {
+  if (server.hasArg("x") && server.hasArg("y")) {
+    int x = server.arg("x").toInt();
+    int y = server.arg("y").toInt();
+    mouseMove(x, y);
+    server.send(200, "text/plain", "OK");
+  } else server.send(400, "text/plain", "Missing x/y");
+}
+
+void handleMouseMoveLocked() {
+  if (server.hasArg("x") && server.hasArg("y")) {
+    int x = server.arg("x").toInt();
+    int y = server.arg("y").toInt();
+    mouseMoveWithButton(x, y, true);
+    server.send(200, "text/plain", "OK");
+  } else server.send(400, "text/plain", "Missing x/y");
+}
+
+void handleMousePressLeft() {
+  sendAbsoluteMouse(0x01, currentMouseX, currentMouseY, 0x00);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleMouseReleaseLeft() {
+  sendAbsoluteMouse(0x00, currentMouseX, currentMouseY, 0x00);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleMouseClick() {
+  if (server.hasArg("btn") && server.hasArg("x") && server.hasArg("y")) {
+    uint8_t btn = (uint8_t)server.arg("btn").toInt();
+    int x = server.arg("x").toInt();
+    int y = server.arg("y").toInt();
+    mouseClick(btn, x, y);
+    server.send(200, "text/plain", "OK");
+  } else server.send(400, "text/plain", "Missing params");
+}
+
+void handleSetRes() {
+  if (server.hasArg("w") && server.hasArg("h")) {
+    screenWidth = server.arg("w").toInt();
+    screenHeight = server.arg("h").toInt();
+    currentMouseX = screenWidth / 2;
+    currentMouseY = screenHeight / 2;
+    server.send(200, "text/plain", "OK");
+  } else server.send(400, "text/plain", "Missing w/h");
+}
+
+void handleText() {
+  if (server.method() != HTTP_POST) { server.send(405, "text/plain", "Method Not Allowed"); return; }
+  String text = server.arg("plain");
+  if (text.length() == 0) { server.send(400, "text/plain", "Empty text"); return; }
+  sendText(text);
+  server.send(200, "text/plain", "OK");
+}
+
+void handleNotFound() { server.send(404, "text/plain", "404 Not Found"); }
+
+// ==================== 主程序 ====================
+void setup() {
+  Serial.begin(9600);
+  delay(200);
+  EEPROM.begin(EEPROM_SIZE);
+  loadConfig();
+  WiFi.disconnect(true);
+  WiFi.persistent(false);
+  delay(100);
+  WiFi.mode(WIFI_AP_STA);
+  delay(100);
+  setAPMAC();
+  IPAddress local_IP(192, 168, 4, 1);
+  IPAddress gateway(192, 168, 4, 1);
+  IPAddress subnet(255, 255, 255, 0);
+  WiFi.softAPConfig(local_IP, gateway, subnet);
+  WiFi.softAP(config.ap_ssid, config.ap_password, 6);
+  connectToWiFi();
+  server.on("/", handleRoot);
+  server.on("/mac", handleMacPage);
+  server.on("/save", HTTP_POST, handleSave);
+  server.on("/scan", handleScan);
+  server.on("/scanmac", handleScanMAC);
+  server.on("/status", handleStatus);
+  server.on("/reset", handleReset);
+  server.on("/reboot", handleReboot);
+  server.on("/hid", handleHidPage);
+  server.on("/key", handleKey);
+  server.on("/special", handleSpecial);
+  server.on("/mouse_move", handleMouseMove);
+  server.on("/mouse_move_locked", handleMouseMoveLocked);
+  server.on("/mouse_press_left", handleMousePressLeft);
+  server.on("/mouse_release_left", handleMouseReleaseLeft);
+  server.on("/mouse_click", handleMouseClick);
+  server.on("/set_res", handleSetRes);
+  server.on("/text", HTTP_POST, handleText);
+  server.onNotFound(handleNotFound);
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    if (config.sta_configured) checkWiFiStatus();
+  }
+  delay(1);
+}
