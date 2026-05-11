@@ -1,0 +1,92 @@
+/**
+ * ESP32-WROOM-32 模块参数读取程序
+ * 功能：读取芯片温度、堆内存、CPU频率、MAC地址、芯片ID、复位原因等
+ * 串口波特率：115200
+ */
+
+#include <Arduino.h>
+#include <WiFi.h>           // 用于获取 MAC 地址
+#include <esp_system.h>     // 复位原因相关
+#include <esp_heap_caps.h>  // 堆内存信息
+
+// 获取复位原因对应的字符串
+String getResetReasonString() {
+  esp_reset_reason_t reason = esp_reset_reason();
+  switch (reason) {
+    case ESP_RST_UNKNOWN:    return "未知复位";
+    case ESP_RST_POWERON:    return "上电复位";
+    case ESP_RST_EXT:        return "外部引脚复位";
+    case ESP_RST_SW:         return "软件复位 (烧录或看门狗)";
+    case ESP_RST_PANIC:      return "异常/恐慌复位";
+    case ESP_RST_INT_WDT:    return "中断看门狗复位";
+    case ESP_RST_TASK_WDT:   return "任务看门狗复位";
+    case ESP_RST_WDT:        return "其他看门狗复位";
+    case ESP_RST_DEEPSLEEP:  return "深度睡眠唤醒复位";
+    case ESP_RST_BROWNOUT:   return "欠压复位";
+    case ESP_RST_SDIO:       return "SDIO 复位";
+    default:                 return "未知原因";
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  Serial.println("\n========== ESP32-WROOM-32 参数报告 ==========\n");
+
+  // ---- 基础芯片信息 ----
+  Serial.printf("芯片型号     : %s\n", ESP.getChipModel());
+  Serial.printf("芯片核心数   : %d 核\n", ESP.getChipCores());
+  Serial.printf("芯片版本     : v%d.%d\n", ESP.getChipRevision() >> 4, ESP.getChipRevision() & 0x0F);
+  Serial.printf("CPU 频率     : %d MHz\n", getCpuFrequencyMhz());
+  Serial.printf("Flash 大小   : %d MB\n", ESP.getFlashChipSize() / (1024 * 1024));
+  Serial.printf("Flash 速度   : %d MHz\n", ESP.getFlashChipSpeed() / 1000000);
+
+  // ---- 温度传感器 (内部温度，可能不精确) ----
+  float temp = temperatureRead();  // Arduino-ESP32 内置函数
+  if (!isnan(temp)) {
+    Serial.printf("芯片温度     : %.2f °C\n", temp);
+  } else {
+    Serial.println("芯片温度     : 读取失败");
+  }
+
+  // ---- 内存信息 ----
+  Serial.printf("总堆内存     : %d bytes (%.2f KB)\n", ESP.getHeapSize(), ESP.getHeapSize() / 1024.0);
+  Serial.printf("当前空闲堆   : %d bytes (%.2f KB)\n", ESP.getFreeHeap(), ESP.getFreeHeap() / 1024.0);
+  Serial.printf("最小空闲堆   : %d bytes (%.2f KB)\n", ESP.getMinFreeHeap(), ESP.getMinFreeHeap() / 1024.0);
+  Serial.printf("最大可分配块 : %d bytes (%.2f KB)\n", ESP.getMaxAllocHeap(), ESP.getMaxAllocHeap() / 1024.0);
+
+  // PSRAM (如果焊接了外部PSRAM)
+  if (ESP.getPsramSize() > 0) {
+    Serial.printf("总 PSRAM     : %d bytes (%.2f KB)\n", ESP.getPsramSize(), ESP.getPsramSize() / 1024.0);
+    Serial.printf("空闲 PSRAM   : %d bytes (%.2f KB)\n", ESP.getFreePsram(), ESP.getFreePsram() / 1024.0);
+    Serial.printf("最小空闲PSRAM: %d bytes (%.2f KB)\n", ESP.getMinFreePsram(), ESP.getMinFreePsram() / 1024.0);
+  } else {
+    Serial.println("外部 PSRAM   : 未检测到");
+  }
+
+  // ---- MAC 地址 (Wi-Fi Station 模式) ----
+  uint8_t mac[6];
+  WiFi.mode(WIFI_STA);
+  WiFi.macAddress(mac);
+  Serial.printf("MAC 地址     : %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+  // ---- 芯片唯一 ID (从 efuse 读取) ----
+  uint64_t chipId = ESP.getEfuseMac();
+  Serial.printf("芯片唯一 ID  : %04X%08X\n", (uint16_t)(chipId >> 32), (uint32_t)chipId);
+
+  // ---- 复位原因 ----
+  Serial.printf("复位原因     : %s\n", getResetReasonString().c_str());
+
+  // ---- 系统运行时间 (单位: 毫秒) ----
+  Serial.printf("运行时间     : %lu ms (%.2f 秒)\n", millis(), millis() / 1000.0);
+
+  // ---- Arduino SDK 版本 ----
+  Serial.printf("Arduino Core : %s\n", ESP.getSdkVersion());
+
+  Serial.println("\n========== 参数读取完成 ==========\n");
+}
+
+void loop() {
+  // 主循环留空，如需动态更新可在此添加定时打印
+  delay(10000);
+}
