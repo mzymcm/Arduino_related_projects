@@ -13,6 +13,9 @@ bash
 idf.py clean
 idf.py build
 
+idf.py fullclean
+idf.py build
+
 烧录并监视：
 bash
 idf.py erase_flash
