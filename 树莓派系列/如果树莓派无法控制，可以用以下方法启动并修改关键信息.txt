@@ -1,0 +1,130 @@
+如果树莓派无法控制，可以用以下方法启动并修改关键信息
+
+第一步：恢复控制（如果你现在连 SSH 都登不进去）
+如果你已经被脚本锁在门外（串口不能用，SSH 没开），必须先通过 拔卡修改 恢复系统：
+断电，取出 microSD 卡，插入电脑。
+在 boot 分区（FAT 格式）的 cmdline.txt 末尾添加：
+init=/bin/sh
+插卡启动，树莓派会直接进入 root shell（无需登录）。
+
+【1】：找到你的根分区设备并重新挂载为读写
+你的根分区很可能是 /dev/mmcblk0p2（TF 卡的第二分区）。请按顺序执行以下命令：
+1. 先挂载 /proc（让某些命令能正常工作）
+mount -t proc proc /proc
+2. 确认根分区设备（可选，但能帮你确认）
+cat /proc/cmdline
+看里面的 root= 后面是不是 PARTUUID=...，但没关系，我们直接用常见的设备。
+3. 重新挂载根分区为读写
+mount -o remount,rw /dev/mmcblk0p2 /
+如果报错（比如找不到设备），试试：
+mount -o remount,rw /dev/mmcblk0p1 /
+因为极少数系统把根分区放在 p1。
+如果还是不行，再尝试：
+mount -o rw,remount /
+（在 /proc 挂载后，这个命令可能会成功，因为它会去读 /etc/fstab。）
+成功后，你可以测试一下：
+touch /test_write
+ls /test_write
+如果能创建文件，说明已经是读写模式了。
+删除捣乱的服务文件
+rm /etc/systemd/system/play-control.service
+# 如果 DietPi 的自启动脚本也被你用过，也删掉
+rm /var/lib/dietpi/dietpi-autostart/custom.sh
+
+
+
+
+查看服务状态的核心命令
+【1】列出所有已激活的服务（正在运行或已退出）
+systemctl list-units --type=service
+这个命令会显示当前内存中 systemd 已知的服务。按 q 键可以退出查看。默认只显示已加载和活动的单元。
+
+【2】查看所有正在运行的服务
+systemctl list-units --type=service --state=running
+查看所有已安装的服务（包括未启动的）和它们的开机自启状态
+这是查看“有哪些服务”最全面的命令，它会读取 /lib/systemd/system 和 /etc/systemd/system 下的所有服务单元文件：
+systemctl list-unit-files --type=service
+输出结果中的 STATE：
+enabled：已设置为开机自启动。
+disabled：未设置开机自启动。
+static：不能单独启动/启用，通常被其他服务依赖。
+masked：被完全禁止启动。
+【3】只查看已开启开机自启的服务
+可以结合 grep 来过滤：
+systemctl list-unit-files --type=service | grep enabled
+【4】检查某个特定服务的详细状态
+如果你想查看我们之前设置的动画播放脚本是否在运行（如果你已经创建了对应的服务），这个命令会很有用：
+systemctl status 服务名.service
+# 例如，如果创建了播放服务叫 play-animation.service
+systemctl status play-animation.service
+
+【5】重新加载 systemd：
+sudo systemctl daemon-reload
+sudo systemctl enable play-control.service
+
+
+
+
+【....】ST7735 1.44" SPI 128x128 显示屏，配置为显示器
+
+ST7735 屏幕引脚		树莓派 GPIO 引脚 (BCM编号)		物理引脚 (Board编号)		功能说明
+LED					GPIO 18 (或其他GPIO)				Pin 12					背光控制，接3.3V可常亮
+SCK					GPIO 11 (SCLK)					Pin 23					SPI时钟信号
+SDA					GPIO 10 (MOSI)					Pin 19					SPI主出从入数据
+A0					GPIO 25							Pin 22					数据/命令选择 (DC)
+RESET				GPIO 27							Pin 13					复位信号
+CS					GPIO 8 (CE0)						Pin 24					SPI片选信号
+GND				GND							Pin 6					电源地
+VCC					3.3V							Pin 1					电源正 (注意用3.3V)
+
+【1】sudo nano  /boot/firmware/config.txt
+# 开启SPI
+dtparam=spi=on
+# 加载ST7735驱动，并指定引脚、分辨率和SPI速率
+dtoverlay=adafruit-st7735r,128x128,reset_pin=27,dc_pin=25,speed=32000000
+reset_pin=27 与 dc_pin=25 需要和你的实际接线保持一致。
+speed 参数可根据实际情况调整，如果显示不稳定，可以降低（如 16000000）。
+
+【2】配置/boot/cmdline.txt：
+为了让系统控制台输出到SPI屏幕，需要修改内核命令行参数。
+sudo nano  /boot/firmware/cmdline.txt
+在行尾添加以下参数：
+fbcon=map:10 fbcon=font:VGA8x8
+此举意在将控制台映射到第二个framebuffer设备 /dev/fb1 上。
+
+【3】创建Xorg配置（可选，仅限桌面环境）：
+如果你希望图形界面也输出到小屏幕，可以创建此文件：
+sudo nano /etc/X11/xorg.conf.d/99-fbdev.conf
+内容如下：
+text
+Section "Device"
+    Identifier      "FB Driver"
+    Driver          "fbdev"
+    Option          "fbdev" "/dev/fb1"
+EndSection
+
+
+
+
+【....】ST7789 2" SPI 320x240 显示屏，配置为显示器
+
+的引脚定义一般标记如下，请用杜邦线连接到树莓派的 GPIO（BCM 编号）：
+
+ST7789 屏幕引脚		树莓派 GPIO (BCM)		物理引脚 (Board)		功能说明
+GND				GND					Pin 6				电源地
+VCC					3.3V					Pin 1				必须接 3.3V
+SCL					GPIO 11 (SCLK)			Pin 23				SPI 时钟
+SDA					GPIO 10 (MOSI)			Pin 19				SPI 数据输出
+RESET				GPIO 27					Pin 13				复位信号
+A0 (DC)				GPIO 25					Pin 22				数据/命令选择
+CS					GPIO 8 (CE0)				Pin 24				SPI 片选
+BL (背光)				GPIO 18 (或直接 3.3V)		Pin 12(GPIO18)		背光控制，接 3.3V 常亮或接 GPIO18 可编程控制
+
+驱动配置
+编辑 /boot/firmware/config.txt，在文件末尾确保存在以下行（注释掉其他冲突的 overlay）：
+dtparam=spi=on
+dtoverlay=fbtft,spi0-0,st7789v,reset_pin=27,dc_pin=25,led_pin=18,rotate=90,bgr
+rotate=90 将竖屏 240×320 旋转为横屏 320×240，若方向不对可改为 270。
+bgr 用于修正颜色顺序，若测试颜色异常可改为 rgb 或删除。
+
+
