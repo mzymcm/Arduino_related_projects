@@ -65,6 +65,29 @@ sudo systemctl enable play-control.service
 
 
 
+
+
+【##########】将 test.mp4 转换为 128x128 RGB565 视频
+你的 test.mp4 位于 /home/dietpi/test，我们将它转成适配 ST7735 的 .rgb 原始视频流（RGB565 小端），再用之前的取反脚本修正颜色。
+1. 安装 ffmpeg（若未安装）
+sudo apt update
+sudo apt install ffmpeg -y
+2. 转换为标准 RGB565 裸视频
+cd /home/dietpi/test
+ffmpeg -i test.mp4 \
+       -vf "fps=10,scale=128:128:flags=lanczos,format=rgb565le" \
+       -f rawvideo \
+       test_128x128.rgb
+
+参数说明：
+fps=10：输出帧率 10 帧/秒（Pi 1A+ 性能有限，10fps 保证流畅）
+scale=128:128：强制缩放到 128x128
+format=rgb565le：输出 RGB565 小端字节序（与树莓派匹配）
+-f rawvideo：输出裸像素数据，无文件头
+
+
+
+
 【....】ST7735 1.44" SPI 128x128 显示屏，配置为显示器
 
 ST7735 屏幕引脚		树莓派 GPIO 引脚 (BCM编号)		物理引脚 (Board编号)		功能说明
@@ -102,6 +125,13 @@ Section "Device"
     Driver          "fbdev"
     Option          "fbdev" "/dev/fb1"
 EndSection
+
+
+
+
+【....】验证电压：
+vcgencmd measure_volts core
+正常应在 1.2V 左右，若低于 1.2V 说明电源确实不合格。
 
 
 
