@@ -123,7 +123,7 @@ BL (背光)				GPIO 18 (或直接 3.3V)		Pin 12(GPIO18)		背光控制，接 3.3V
 驱动配置
 编辑 /boot/firmware/config.txt，在文件末尾确保存在以下行（注释掉其他冲突的 overlay）：
 dtparam=spi=on
-dtoverlay=fbtft,spi0-0,st7789v,reset_pin=27,dc_pin=25,led_pin=18,rotate=90,bgr
+dtoverlay=fbtft,spi0-0,st7789v,reset_pin=27,dc_pin=25,led_pin=18,rotate=90
 rotate=90 将竖屏 240×320 旋转为横屏 320×240，若方向不对可改为 270。
 bgr 用于修正颜色顺序，若测试颜色异常可改为 rgb 或删除。
 
@@ -160,7 +160,7 @@ sudo systemctl start pigpiod
 
 
 
-
+####===========  ST7789 视频播放控制器并使用软串口控制  begin=============#####
 
 #!/usr/bin/env python3
 """
@@ -364,3 +364,52 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+####===========  ST7789 视频播放控制器并使用软串口控制  end=============#####
+
+
+
+
+
+
+
+
+
+
+
+####===========  将 RGB565 视频文件按位取反，生成新文件  begin=============#####
+
+#!/usr/bin/env python3
+"""将 RGB565 视频文件按位取反，生成新文件"""
+import sys
+import array
+
+def invert_frame(data):
+    arr = array.array('H', data)  # 'H' = 无符号 2 字节（小端）
+    for i in range(len(arr)):
+        arr[i] ^= 0xFFFF          # 按位取反
+    return arr.tobytes()
+
+def main():
+    if len(sys.argv) != 3:
+        print("用法: python3 invert_video.py <输入.rgb> <输出.rgb>")
+        sys.exit(1)
+    src = sys.argv[1]
+    dst = sys.argv[2]
+    print(f"正在取反: {src} -> {dst}")
+    with open(src, 'rb') as fin, open(dst, 'wb') as fout:
+        chunk_size = 153600  # 一帧 (320*240*2)
+        total = 0
+        while True:
+            chunk = fin.read(chunk_size)
+            if not chunk:
+                break
+            fout.write(invert_frame(chunk))
+            total += len(chunk)
+            print(f"\r已处理 {total} 字节", end='', flush=True)
+    print("\n✅ 取反完成！")
+
+if __name__ == "__main__":
+    main()
+
+####===========  将 RGB565 视频文件按位取反，生成新文件  end=============#####
