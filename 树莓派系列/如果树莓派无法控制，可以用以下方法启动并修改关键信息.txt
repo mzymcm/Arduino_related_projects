@@ -128,3 +128,229 @@ rotate=90 将竖屏 240×320 旋转为横屏 320×240，若方向不对可改为
 bgr 用于修正颜色顺序，若测试颜色异常可改为 rgb 或删除。
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#!/usr/bin/env python3
+"""
+ST7789 视频播放控制器
+用法：python3 video_control.py
+"""
+
+import pigpio
+import threading
+import time
+import sys
+import os
+
+# ========== 配置 ==========
+TX_PIN = 19
+RX_PIN = 16
+BAUD = 38400
+BITS = 8
+
+FB_DEVICE = "/dev/fb0"
+VIDEO_FILE = "/home/dietpi/test/test_320x240.rgb"
+SCREEN_WIDTH = 320
+SCREEN_HEIGHT = 240
+BYTES_PER_PIXEL = 2
+FRAME_SIZE = SCREEN_WIDTH * SCREEN_HEIGHT * BYTES_PER_PIXEL
+FPS = 30
+
+LED_PIN = 18
+LED_ON = 1
+
+# ========== 全局状态 ==========
+pi = pigpio.pi()
+if not pi.connected:
+    print("❌ 无法连接 pigpiod，请先执行: sudo systemctl start pigpiod")
+    sys.exit(1)
+
+running = True
+video_playing = False
+playback_thread = None
+video_stop_event = threading.Event()
+last_command_time = 0
+COMMAND_COOLDOWN = 0.5
+
+# 读取视频文件
+try:
+    video_data = open(VIDEO_FILE, "rb").read()
+except FileNotFoundError:
+    print(f"❌ 视频文件未找到: {VIDEO_FILE}")
+    sys.exit(1)
+
+video_size = len(video_data)
+if video_size % FRAME_SIZE == 0:
+    total_frames = video_size // FRAME_SIZE
+    print(f"✅ 检测到 {total_frames} 帧视频")
+else:
+    total_frames = 1
+    print(f"⚠️ 文件大小异常，将作为单帧循环播放")
+
+# ========== 显示控制 ==========
+def clear_screen():
+    with open(FB_DEVICE, 'wb') as fb:
+        fb.write(b'\x00' * FRAME_SIZE)
+
+def set_backlight(on: bool):
+    pi.write(LED_PIN, LED_ON if on else (1 - LED_ON))
+
+def play_video_loop():
+    global video_playing
+    print("▶️  开始播放视频")
+    set_backlight(True)
+    frame_index = 0
+    while not video_stop_event.is_set():
+        if total_frames > 1:
+            offset = (frame_index % total_frames) * FRAME_SIZE
+            frame_data = video_data[offset:offset + FRAME_SIZE]
+            frame_index += 1
+        else:
+            frame_data = video_data[:FRAME_SIZE]
+        with open(FB_DEVICE, 'wb') as fb:
+            fb.write(frame_data)
+        time.sleep(1.0 / FPS)
+    clear_screen()
+    set_backlight(False)
+    print("⏹️  视频已停止")
+    video_playing = False
+
+def start_playback():
+    global video_playing, playback_thread
+    if video_playing:
+        return
+    video_stop_event.clear()
+    playback_thread = threading.Thread(target=play_video_loop, daemon=True)
+    video_playing = True
+    playback_thread.start()
+
+def stop_playback():
+    if not video_playing:
+        return
+    video_stop_event.set()
+    if playback_thread:
+        playback_thread.join(timeout=2.0)
+
+# ========== 指令匹配（宽松） ==========
+def try_extract_command(buffer_str):
+    s = buffer_str.upper().replace(" ", "")
+    idx = s.find("STARTV")
+    if idx != -1:
+        return 'play', buffer_str[:idx] + buffer_str[idx+6:]
+    idx = s.find("STOPTV")
+    if idx != -1:
+        return 'stop', buffer_str[:idx] + buffer_str[idx+6:]
+    idx = s.find("EXIT")
+    if idx != -1:
+        return 'exit', buffer_str[:idx] + buffer_str[idx+4:]
+    return None, buffer_str
+
+# ========== 指令处理 ==========
+def handle_command(cmd_type):
+    global last_command_time, running
+    now = time.time()
+    if now - last_command_time < COMMAND_COOLDOWN:
+        return
+    last_command_time = now
+
+    if cmd_type == 'play':
+        print("📨 收到播放指令")
+        start_playback()
+    elif cmd_type == 'stop':
+        print("📨 收到停止指令")
+        stop_playback()
+    elif cmd_type == 'exit':
+        print("📨 收到退出指令，准备关闭...")
+        running = False   # 主循环将结束
+        sys.stdout.flush()
+
+# ========== 接收线程 ==========
+def receiver_thread():
+    global running
+    rx_buffer = ""
+    try:
+        pi.bb_serial_read_open(RX_PIN, BAUD, BITS)
+        print(f"✅ 软串口接收已启动 (GPIO{RX_PIN}, {BAUD}bps)")
+        while running:
+            (count, data) = pi.bb_serial_read(RX_PIN)
+            if count > 0:
+                rx_buffer += data.decode('utf-8', errors='replace')
+                while True:
+                    cmd_type, rx_buffer = try_extract_command(rx_buffer)
+                    if cmd_type:
+                        handle_command(cmd_type)
+                        continue
+                    break
+            else:
+                time.sleep(0.01)
+    except Exception as e:
+        print(f"⚠️ 接收线程异常: {e}")
+    finally:
+        # >>> 关键：仅当 pigpio 仍连接时才关闭读取
+        if pi.connected:
+            pi.bb_serial_read_close(RX_PIN)
+        print("🔌 接收线程已退出")
+
+# ========== 主程序 ==========
+def main():
+    global running
+
+    pi.set_mode(TX_PIN, pigpio.OUTPUT)
+    pi.set_mode(RX_PIN, pigpio.INPUT)
+    pi.set_mode(LED_PIN, pigpio.OUTPUT)
+    pi.write(TX_PIN, pigpio.HIGH)
+    set_backlight(False)
+    clear_screen()
+
+    recv_thread = threading.Thread(target=receiver_thread, daemon=True)
+    recv_thread.start()
+
+    print("=" * 50)
+    print("🎬 视频播放控制器就绪 (38400bps)")
+    print("   发送 'STAR TV'  → 播放视频")
+    print("   发送 'STOP TV'  → 停止播放")
+    print("   发送 'EXIT'     → 退出程序")
+    print("=" * 50)
+
+    try:
+        while running:
+            time.sleep(0.2)
+    except KeyboardInterrupt:
+        print("\n⏹️  手动中断")
+        running = False
+    finally:
+        # >>> 正确的退出顺序 <<<
+        # 1. 确保接收线程完全退出
+        recv_thread.join(timeout=2.0)
+        # 2. 停止播放
+        if video_playing:
+            stop_playback()
+        # 3. 最后才关闭 pigpio 连接
+        if pi.connected:
+            pi.stop()
+        print("👋 程序结束")
+
+if __name__ == "__main__":
+    main()
