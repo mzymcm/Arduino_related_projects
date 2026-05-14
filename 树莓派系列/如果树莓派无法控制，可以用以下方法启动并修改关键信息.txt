@@ -164,8 +164,7 @@ sudo systemctl start pigpiod
 
 #!/usr/bin/env python3
 """
-ST7789 视频播放控制器
-用法：python3 video_control.py
+ST7789 视频播放控制器 (38400bps + 两次确认 + 安全退出)
 """
 
 import pigpio
@@ -181,7 +180,7 @@ BAUD = 38400
 BITS = 8
 
 FB_DEVICE = "/dev/fb0"
-VIDEO_FILE = "/home/dietpi/test/test_320x240.rgb"
+VIDEO_FILE = "/home/dietpi/test/test_320x240_inv.rgb"   # 取反后的视频
 SCREEN_WIDTH = 320
 SCREEN_HEIGHT = 240
 BYTES_PER_PIXEL = 2
@@ -190,6 +189,9 @@ FPS = 30
 
 LED_PIN = 18
 LED_ON = 1
+
+# 两次确认参数
+CONFIRM_TIMEOUT = 2.0          # 两次相同指令的最大间隔（秒）
 
 # ========== 全局状态 ==========
 pi = pigpio.pi()
@@ -201,8 +203,9 @@ running = True
 video_playing = False
 playback_thread = None
 video_stop_event = threading.Event()
-last_command_time = 0
-COMMAND_COOLDOWN = 0.5
+
+# 指令确认缓存: {cmd_type: 上次收到的时间}
+pending_commands = {}
 
 # 读取视频文件
 try:
@@ -263,7 +266,7 @@ def stop_playback():
     if playback_thread:
         playback_thread.join(timeout=2.0)
 
-# ========== 指令匹配（宽松） ==========
+# ========== 指令匹配 ==========
 def try_extract_command(buffer_str):
     s = buffer_str.upper().replace(" ", "")
     idx = s.find("STARTV")
@@ -277,24 +280,40 @@ def try_extract_command(buffer_str):
         return 'exit', buffer_str[:idx] + buffer_str[idx+4:]
     return None, buffer_str
 
-# ========== 指令处理 ==========
+# ========== 带确认的指令处理 ==========
 def handle_command(cmd_type):
-    global last_command_time, running
+    global pending_commands, running
     now = time.time()
-    if now - last_command_time < COMMAND_COOLDOWN:
-        return
-    last_command_time = now
 
-    if cmd_type == 'play':
-        print("📨 收到播放指令")
-        start_playback()
-    elif cmd_type == 'stop':
-        print("📨 收到停止指令")
-        stop_playback()
-    elif cmd_type == 'exit':
+    # 如果是 EXIT，直接退出（可以不加确认，或也加确认，按需）
+    if cmd_type == 'exit':
         print("📨 收到退出指令，准备关闭...")
-        running = False   # 主循环将结束
-        sys.stdout.flush()
+        running = False
+        return
+
+    # 检查是否在待确认列表中且未超时
+    if cmd_type in pending_commands:
+        last_time = pending_commands[cmd_type]
+        if now - last_time <= CONFIRM_TIMEOUT:
+            # 第二次收到，确认执行
+            del pending_commands[cmd_type]
+            if cmd_type == 'play':
+                print("✅ 指令确认：开始播放")
+                start_playback()
+            elif cmd_type == 'stop':
+                print("✅ 指令确认：停止播放")
+                stop_playback()
+            return
+        else:
+            # 超时，视为新指令，重新计时
+            pass
+
+    # 第一次收到，记录时间并等待第二次
+    pending_commands[cmd_type] = now
+    print(f"⏳ 收到 {cmd_type} 指令，等待二次确认...")
+
+    # 可选：启动一个定时器清理过期的待确认指令
+    # 简单起见，这里不增加额外线程，在下一次任何指令到来时清理
 
 # ========== 接收线程 ==========
 def receiver_thread():
@@ -318,7 +337,6 @@ def receiver_thread():
     except Exception as e:
         print(f"⚠️ 接收线程异常: {e}")
     finally:
-        # >>> 关键：仅当 pigpio 仍连接时才关闭读取
         if pi.connected:
             pi.bb_serial_read_close(RX_PIN)
         print("🔌 接收线程已退出")
@@ -338,10 +356,10 @@ def main():
     recv_thread.start()
 
     print("=" * 50)
-    print("🎬 视频播放控制器就绪 (38400bps)")
-    print("   发送 'STAR TV'  → 播放视频")
-    print("   发送 'STOP TV'  → 停止播放")
-    print("   发送 'EXIT'     → 退出程序")
+    print("🎬 视频播放控制器就绪 (38400bps + 两次确认)")
+    print("   发送 'STAR TV' 两次 → 播放视频")
+    print("   发送 'STOP TV' 两次 → 停止播放")
+    print("   发送 'EXIT' 两次    → 退出程序")
     print("=" * 50)
 
     try:
@@ -351,13 +369,9 @@ def main():
         print("\n⏹️  手动中断")
         running = False
     finally:
-        # >>> 正确的退出顺序 <<<
-        # 1. 确保接收线程完全退出
         recv_thread.join(timeout=2.0)
-        # 2. 停止播放
         if video_playing:
             stop_playback()
-        # 3. 最后才关闭 pigpio 连接
         if pi.connected:
             pi.stop()
         print("👋 程序结束")
@@ -366,6 +380,30 @@ if __name__ == "__main__":
     main()
 
 ####===========  ST7789 视频播放控制器并使用软串口控制  end=============#####
+
+
+1. 创建 systemd 服务文件
+在树莓派上创建 /etc/systemd/system/video-control.service：
+
+[Unit]
+Description=Video Playback Controller (Soft Serial + ST7789)
+After=pigpiod.service
+Requires=pigpiod.service
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/dietpi/video_control_v2_fixed.py
+WorkingDirectory=/home/dietpi
+Restart=always
+RestartSec=5
+User=root
+[Install]
+WantedBy=multi-user.target
+
+启用服务
+sudo systemctl daemon-reload
+sudo systemctl enable video-control.service
+sudo systemctl start video-control.service
+
 
 
 
