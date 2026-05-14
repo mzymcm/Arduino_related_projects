@@ -145,7 +145,17 @@ bgr 用于修正颜色顺序，若测试颜色异常可改为 rgb 或删除。
 
 
 
+使用 pigpio 实现高速软串口
+pigpio 是目前 唯一能在 Pi 1A+ 上勉强驱动 115200bps 软件串口 的成熟方案。
 
+1. 安装与配置
+在 DietPi 终端执行：
+sudo apt update
+# 安装 pigpio 守护程序及 Python 库
+sudo apt install pigpio python3-pigpio -y
+# 启动 pigpio 守护程序并设置开机自启
+sudo systemctl enable pigpiod
+sudo systemctl start pigpiod
 
 
 
