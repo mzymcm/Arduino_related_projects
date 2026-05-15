@@ -175,7 +175,7 @@ bgr 用于修正颜色顺序，若测试颜色异常可改为 rgb 或删除。
 
 
 
-使用 pigpio 实现高速软串口
+【....】使用 pigpio 实现高速软串口
 pigpio 是目前 唯一能在 Pi 1A+ 上勉强驱动 115200bps 软件串口 的成熟方案。
 
 1. 安装与配置
@@ -187,21 +187,66 @@ sudo apt install pigpio python3-pigpio -y
 sudo systemctl enable pigpiod
 sudo systemctl start pigpiod
 
+【....】问题和解决：
+网络依赖导致的服务启动超时
+pigpiod 服务在启动时，可能需要等待网络目标（network.target）就绪。在没有插入 USB 网卡的情况下，系统可能会等待一个根本不存在的 eth0 等网络接口，导致启动超时或失败。
+在极少数网络配置混乱的情况下，localhost 的解析可能会出问题。正常情况下，/etc/hosts 文件中应该包含将 localhost 指向 127.0.0.1 和 ::1 的条目。你可以通过 cat /etc/hosts 命令来快速检查一下。
+# 1. 查找并强制结束所有 pigpiod 进程
+sudo killall pigpiod
+
+# 2. 检查 8888 端口是否已被释放
+sudo netstat -tlnp | grep 8888
+
+# 3. 确认无输出后，重新启动服务
+sudo systemctl start pigpiod
+
+正常情况下，/etc/hosts 必须包含至少下面这两行：
+127.0.0.1       localhost
+::1             localhost ip6-localhost ip6-loopback
+你的文件里完全没有 127.0.0.1 localhost 这一条，也没有 IPv6 的 loopback 定义。这导致系统无法解析 localhost 这个主机名，当 pigpiod 尝试绑定到 localhost（默认行为）或任何代码尝试连接 localhost:8888 时，都会因为主机名无法解析而报错。
+
+sudo apt remove --auto-remove pigpio pigpiod python3-pigpio pigpio-tools
+sudo apt purge pigpio pigpiod
+sudo rm -rf /var/run/pigpio.pid /var/log/pigpio* /etc/systemd/system/pigpiod.service
+sudo apt autoremove --purge
+
+sudo apt install pigpiod python3-pigpio
+sudo systemctl enable pigpiod
+sudo systemctl start pigpiod
+
+验证安装
+安装完成后，用以下命令验证一下服务是否正常运行。
+检查服务状态：
+sudo systemctl status pigpiod
+如果服务正常，你会看到状态是 active (running)。
+
+检查端口监听：
+sudo netstat -tlnp | grep 8888
+你应该能看到 tcp 或 tcp6 开头的行，显示进程 pigpiod 正在监听 8888 端口。
+如果没有以面的命令，安装一下。sudo apt install net-tools -y
+
+测试通信：
+pigs hwver
+如果通信正常，这个命令会返回你树莓派的硬件版本号。
+
 
 
 
 ####===========  ST7789 视频播放控制器并使用软串口控制  begin=============#####
+sudo nano /home/dietpi/video_control_v2_fixed.py
+
 
 #!/usr/bin/env python3
 """
-ST7789 视频播放控制器 (38400bps + 两次确认 + 安全退出)
+ST7789 视频播放控制器
 """
 
 import pigpio
 import threading
 import time
 import sys
-import os
+import glob
+import re
 
 # ========== 配置 ==========
 TX_PIN = 19
@@ -209,8 +254,17 @@ RX_PIN = 16
 BAUD = 38400
 BITS = 8
 
-FB_DEVICE = "/dev/fb0"
-VIDEO_FILE = "/home/dietpi/test/test_320x240_inv.rgb"   # 取反后的视频
+def get_last_framebuffer():
+    fb_devices = sorted(glob.glob('/dev/fb[0-9]*'))
+    return fb_devices[-1] if fb_devices else None
+
+FB_DEVICE = get_last_framebuffer()
+if FB_DEVICE is None:
+    print("❌ 未找到任何帧缓冲设备 (/dev/fb*)")
+    sys.exit(1)
+print(f"✅ 使用帧缓冲设备: {FB_DEVICE}")
+
+VIDEO_FILE = "/home/dietpi/test/test_320x240_inv.rgb"
 SCREEN_WIDTH = 320
 SCREEN_HEIGHT = 240
 BYTES_PER_PIXEL = 2
@@ -220,28 +274,40 @@ FPS = 30
 LED_PIN = 18
 LED_ON = 1
 
-# 两次确认参数
-CONFIRM_TIMEOUT = 2.0          # 两次相同指令的最大间隔（秒）
+EXIT_CONFIRM_TIMEOUT = 2.0   # 两次 exit 的最大间隔
+CMD_COOLDOWN = 0.3           # 同类指令冷却时间（秒）
 
-# ========== 全局状态 ==========
-pi = pigpio.pi()
-if not pi.connected:
-    print("❌ 无法连接 pigpiod，请先执行: sudo systemctl start pigpiod")
+# ========== 连接 pigpiod（带重试） ==========
+def connect_pigpio(host='127.0.0.1', port=8888, retries=20, delay=0.5):
+    for i in range(retries):
+        pi = pigpio.pi(host, port)
+        if pi.connected:
+            print(f"✅ 已连接到 pigpiod ({host}:{port})")
+            return pi
+        pi.stop()
+        print(f"⏳ 等待 pigpiod 就绪... ({i+1}/{retries})")
+        time.sleep(delay)
+    print("❌ 无法连接 pigpiod，请检查服务状态")
     sys.exit(1)
+
+pi = connect_pigpio('127.0.0.1', 8888)
 
 running = True
 video_playing = False
 playback_thread = None
 video_stop_event = threading.Event()
 
-# 指令确认缓存: {cmd_type: 上次收到的时间}
-pending_commands = {}
+exit_pending_time = None      # 用于 exit 二次确认
+last_play_time = 0
+last_stop_time = 0
 
 # 读取视频文件
 try:
-    video_data = open(VIDEO_FILE, "rb").read()
+    with open(VIDEO_FILE, "rb") as f:
+        video_data = f.read()
 except FileNotFoundError:
     print(f"❌ 视频文件未找到: {VIDEO_FILE}")
+    pi.stop()
     sys.exit(1)
 
 video_size = len(video_data)
@@ -254,8 +320,11 @@ else:
 
 # ========== 显示控制 ==========
 def clear_screen():
-    with open(FB_DEVICE, 'wb') as fb:
-        fb.write(b'\x00' * FRAME_SIZE)
+    try:
+        with open(FB_DEVICE, 'wb') as fb:
+            fb.write(b'\x00' * FRAME_SIZE)
+    except Exception as e:
+        print(f"⚠️ 清屏失败: {e}")
 
 def set_backlight(on: bool):
     pi.write(LED_PIN, LED_ON if on else (1 - LED_ON))
@@ -265,6 +334,7 @@ def play_video_loop():
     print("▶️  开始播放视频")
     set_backlight(True)
     frame_index = 0
+    frame_duration = 1.0 / FPS
     while not video_stop_event.is_set():
         if total_frames > 1:
             offset = (frame_index % total_frames) * FRAME_SIZE
@@ -272,9 +342,13 @@ def play_video_loop():
             frame_index += 1
         else:
             frame_data = video_data[:FRAME_SIZE]
-        with open(FB_DEVICE, 'wb') as fb:
-            fb.write(frame_data)
-        time.sleep(1.0 / FPS)
+        try:
+            with open(FB_DEVICE, 'wb') as fb:
+                fb.write(frame_data)
+        except Exception as e:
+            print(f"⚠️ 写入帧缓冲失败: {e}")
+            break
+        time.sleep(frame_duration)
     clear_screen()
     set_backlight(False)
     print("⏹️  视频已停止")
@@ -283,6 +357,7 @@ def play_video_loop():
 def start_playback():
     global video_playing, playback_thread
     if video_playing:
+        print("⚠️ 视频已在播放中")
         return
     video_stop_event.clear()
     playback_thread = threading.Thread(target=play_video_loop, daemon=True)
@@ -290,86 +365,132 @@ def start_playback():
     playback_thread.start()
 
 def stop_playback():
+    global video_playing, playback_thread
     if not video_playing:
         return
     video_stop_event.set()
-    if playback_thread:
+    if playback_thread and playback_thread.is_alive():
         playback_thread.join(timeout=2.0)
+    video_playing = False
 
-# ========== 指令匹配 ==========
-def try_extract_command(buffer_str):
-    s = buffer_str.upper().replace(" ", "")
-    idx = s.find("STARTV")
-    if idx != -1:
-        return 'play', buffer_str[:idx] + buffer_str[idx+6:]
-    idx = s.find("STOPTV")
-    if idx != -1:
-        return 'stop', buffer_str[:idx] + buffer_str[idx+6:]
-    idx = s.find("EXIT")
-    if idx != -1:
-        return 'exit', buffer_str[:idx] + buffer_str[idx+4:]
-    return None, buffer_str
+# ========== 指令匹配辅助 ==========
+def normalize(text):
+    return re.sub(r'\s+', '', text).lower()
 
-# ========== 带确认的指令处理 ==========
-def handle_command(cmd_type):
-    global pending_commands, running
-    now = time.time()
+def contains_play(text):
+    n = normalize(text)
+    return 'star' in n and 'tv' in n
 
-    # 如果是 EXIT，直接退出（可以不加确认，或也加确认，按需）
-    if cmd_type == 'exit':
-        print("📨 收到退出指令，准备关闭...")
-        running = False
-        return
+def contains_stop(text):
+    n = normalize(text)
+    return 'stop' in n and 'tv' in n
 
-    # 检查是否在待确认列表中且未超时
-    if cmd_type in pending_commands:
-        last_time = pending_commands[cmd_type]
-        if now - last_time <= CONFIRM_TIMEOUT:
-            # 第二次收到，确认执行
-            del pending_commands[cmd_type]
-            if cmd_type == 'play':
-                print("✅ 指令确认：开始播放")
-                start_playback()
-            elif cmd_type == 'stop':
-                print("✅ 指令确认：停止播放")
-                stop_playback()
+def contains_exit(text):
+    n = normalize(text)
+    return 'exit' in n
+
+# ========== 实时指令处理器 ==========
+class StableCommandMatcher:
+    def __init__(self):
+        self.buffer = ""
+        self.exit_pending_time = None
+
+    def feed(self, raw_bytes):
+        global last_play_time, last_stop_time, running
+        try:
+            self.buffer += raw_bytes.decode('utf-8', errors='ignore')
+        except:
             return
-        else:
-            # 超时，视为新指令，重新计时
+
+        now = time.time()
+
+        # 播放指令
+        if contains_play(self.buffer):
+            if now - last_play_time > CMD_COOLDOWN:
+                print("📨 [播放] 检测到 star+tv 指令")
+                start_playback()
+                last_play_time = now
+                self.buffer = ""
+
+        # 停止指令（使用 elif 避免同时触发）
+        elif contains_stop(self.buffer):
+            if now - last_stop_time > CMD_COOLDOWN:
+                print("📨 [停止] 检测到 stop+tv 指令")
+                stop_playback()
+                last_stop_time = now
+                self.buffer = ""
+
+        # 退出指令（独立处理）
+        if contains_exit(self.buffer):
+            # 移除已匹配的 exit 部分
+            idx = self.buffer.lower().find('exit')
+            if idx != -1:
+                self.buffer = self.buffer[idx+4:]
+
+            if self.exit_pending_time is None:
+                self.exit_pending_time = now
+                print("⏳ 检测到退出指令，请在 2 秒内再次发送 EXIT 以确认退出")
+            else:
+                if now - self.exit_pending_time <= EXIT_CONFIRM_TIMEOUT:
+                    print("✅ 退出指令确认，程序即将退出")
+                    running = False
+                else:
+                    print("⏰ 退出确认超时，请重新发送两次 EXIT")
+                    self.exit_pending_time = now
+
+        # 定期清理缓冲区
+        if len(self.buffer) > 500:
+            self.buffer = self.buffer[-200:]
+
+        # 清理超时等待
+        if self.exit_pending_time and (now - self.exit_pending_time) > EXIT_CONFIRM_TIMEOUT:
+            self.exit_pending_time = None
+            print("⏰ 退出指令等待超时，已取消")
+
+# ========== 软串口接收线程（带冲突恢复） ==========
+def open_soft_serial_with_retry(pi, rx_pin, baud, bits, max_attempts=5):
+    """尝试打开软串口，如果失败则关闭重试"""
+    for attempt in range(max_attempts):
+        # 先尝试关闭可能残留的软串口
+        try:
+            pi.bb_serial_read_close(rx_pin)
+            time.sleep(0.2)
+        except:
             pass
+        try:
+            pi.bb_serial_read_open(rx_pin, baud, bits)
+            print(f"✅ 软串口接收已启动 (GPIO{rx_pin}, {baud}bps)")
+            return True
+        except Exception as e:
+            print(f"⚠️ 打开软串口失败 (尝试 {attempt+1}/{max_attempts}): {e}")
+            time.sleep(1)
+    return False
 
-    # 第一次收到，记录时间并等待第二次
-    pending_commands[cmd_type] = now
-    print(f"⏳ 收到 {cmd_type} 指令，等待二次确认...")
-
-    # 可选：启动一个定时器清理过期的待确认指令
-    # 简单起见，这里不增加额外线程，在下一次任何指令到来时清理
-
-# ========== 接收线程 ==========
 def receiver_thread():
     global running
-    rx_buffer = ""
+    matcher = StableCommandMatcher()
+
+    # 尝试打开软串口，失败则退出（让 systemd 重启服务）
+    if not open_soft_serial_with_retry(pi, RX_PIN, BAUD, BITS):
+        print("❌ 无法打开软串口，接收线程退出")
+        return
+
     try:
-        pi.bb_serial_read_open(RX_PIN, BAUD, BITS)
-        print(f"✅ 软串口接收已启动 (GPIO{RX_PIN}, {BAUD}bps)")
         while running:
             (count, data) = pi.bb_serial_read(RX_PIN)
             if count > 0:
-                rx_buffer += data.decode('utf-8', errors='replace')
-                while True:
-                    cmd_type, rx_buffer = try_extract_command(rx_buffer)
-                    if cmd_type:
-                        handle_command(cmd_type)
-                        continue
-                    break
+                matcher.feed(data)
             else:
-                time.sleep(0.01)
+                time.sleep(0.005)
     except Exception as e:
         print(f"⚠️ 接收线程异常: {e}")
     finally:
-        if pi.connected:
+        try:
             pi.bb_serial_read_close(RX_PIN)
-        print("🔌 接收线程已退出")
+            print("🔌 软串口已关闭")
+        except:
+            pass
+        print("📡 接收线程已退出")
 
 # ========== 主程序 ==========
 def main():
@@ -378,7 +499,7 @@ def main():
     pi.set_mode(TX_PIN, pigpio.OUTPUT)
     pi.set_mode(RX_PIN, pigpio.INPUT)
     pi.set_mode(LED_PIN, pigpio.OUTPUT)
-    pi.write(TX_PIN, pigpio.HIGH)
+    pi.write(TX_PIN, 1)
     set_backlight(False)
     clear_screen()
 
@@ -386,10 +507,12 @@ def main():
     recv_thread.start()
 
     print("=" * 50)
-    print("🎬 视频播放控制器就绪 (38400bps + 两次确认)")
-    print("   发送 'STAR TV' 两次 → 播放视频")
-    print("   发送 'STOP TV' 两次 → 停止播放")
-    print("   发送 'EXIT' 两次    → 退出程序")
+    print("🎬 视频播放控制器 (稳定版 + GPIO冲突修复)")
+    print(f"   使用帧缓冲: {FB_DEVICE}")
+    print("   播放指令: 任意位置同时出现 'star' 和 'tv' (不区分大小写/空格)")
+    print("   停止指令: 任意位置同时出现 'stop' 和 'tv'")
+    print("   退出指令: 2秒内连续两次出现 'exit'")
+    print("   ★ 自动处理 GPIO 占用，服务重启无忧 ★")
     print("=" * 50)
 
     try:
@@ -402,18 +525,24 @@ def main():
         recv_thread.join(timeout=2.0)
         if video_playing:
             stop_playback()
-        if pi.connected:
-            pi.stop()
-        print("👋 程序结束")
+        # 最后再关闭一次软串口，确保释放
+        try:
+            pi.bb_serial_read_close(RX_PIN)
+        except:
+            pass
+        pi.stop()
+        print("👋 程序结束，所有资源已释放")
 
 if __name__ == "__main__":
     main()
+
+
 
 ####===========  ST7789 视频播放控制器并使用软串口控制  end=============#####
 
 
 1. 创建 systemd 服务文件
-在树莓派上创建 /etc/systemd/system/video-control.service：
+在树莓派上创建 sudo nano /etc/systemd/system/video-control.service：
 
 [Unit]
 Description=Video Playback Controller (Soft Serial + ST7789)
@@ -481,3 +610,41 @@ if __name__ == "__main__":
     main()
 
 ####===========  将 RGB565 视频文件按位取反，生成新文件  end=============#####
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+sudo nano /lib/systemd/system/pigpiod.service
+原始pigpiod.service配置
+
+[Unit]
+Description=Daemon required to control GPIO pins via pigpio
+[Service]
+ExecStart=/usr/bin/pigpiod -l
+ExecStop=/bin/systemctl kill pigpiod
+Type=forking
+[Install]
+WantedBy=multi-user.target
