@@ -205,6 +205,15 @@ sudo systemctl start pigpiod
 ::1             localhost ip6-localhost ip6-loopback
 你的文件里完全没有 127.0.0.1 localhost 这一条，也没有 IPv6 的 loopback 定义。这导致系统无法解析 localhost 这个主机名，当 pigpiod 尝试绑定到 localhost（默认行为）或任何代码尝试连接 localhost:8888 时，都会因为主机名无法解析而报错。
 
+127.0.0.1 localhost
+127.0.1.1 DietPi
+::1 localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+
+
+
+
 sudo apt remove --auto-remove pigpio pigpiod python3-pigpio pigpio-tools
 sudo apt purge pigpio pigpiod
 sudo rm -rf /var/run/pigpio.pid /var/log/pigpio* /etc/systemd/system/pigpiod.service
@@ -630,10 +639,31 @@ if __name__ == "__main__":
 
 
 
+pigpiod 只监听了 IPv6 回环地址 ::1:8888，而你的脚本连接的是 IPv4 127.0.0.1:8888，两者不互通，导致连接失败的问题解决：
+快速修复（二选一）
+方法一：修改脚本，连接到 ::1
+将脚本中 connect_pigpio 调用的地址改为 '::1'：
+python
+pi = connect_pigpio('::1', 8888)
+优点：立刻生效，无需动系统服务。
+缺点：仅适用于 IPv6 环境，如果以后 pigpiod 改为 IPv4 又会失效。
 
+方法二：让 pigpiod 同时监听 IPv4 和 IPv6（推荐）
+编辑 pigpiod 的 systemd 服务文件，使其监听所有接口（或明确指定 IPv4）：
+bash
+sudo systemctl edit pigpiod
+在打开的编辑器里添加：
 
+text
+[Service]
+ExecStart=
+ExecStart=/usr/bin/pigpiod -n 0.0.0.0
+（第一行 ExecStart= 是必需的，用于清空原有命令，再重新设置）
 
-
+保存后重启服务：
+bash
+sudo systemctl daemon-reload
+sudo systemctl restart pigpiod
 
 
 
