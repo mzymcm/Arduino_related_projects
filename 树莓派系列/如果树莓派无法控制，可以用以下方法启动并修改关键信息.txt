@@ -678,3 +678,510 @@ ExecStop=/bin/systemctl kill pigpiod
 Type=forking
 [Install]
 WantedBy=multi-user.target
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+屏测试程序：
+sudo apt install python3-pil python3-numpy
+
+sudo python3 test_st7789.py
+
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+import time
+import glob
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+# 帧缓冲设备编号 (通常 fbtft 分配为 fb1)
+FB_NUM = 1
+FB_DEVICE = f"/dev/fb{FB_NUM}"
+SYS_FB = f"/sys/class/graphics/fb{FB_NUM}"
+
+# 默认分辨率（若从 sysfs 读取失败则使用）
+DEFAULT_WIDTH = 320
+DEFAULT_HEIGHT = 240
+
+# 背光控制相关
+BACKLIGHT_PATH = None
+
+def find_backlight_device():
+    """查找 fbtft 创建的背光设备路径"""
+    candidates = [
+        "/sys/class/backlight/st7789v",
+        "/sys/class/backlight/fb_st7789v",
+        "/sys/class/backlight/spi0.0",
+    ]
+    for pattern in candidates:
+        matches = glob.glob(pattern)
+        if matches:
+            return matches[0]
+    all_devices = glob.glob("/sys/class/backlight/*")
+    if all_devices:
+        print(f"找到背光设备: {all_devices[0]}")
+        return all_devices[0]
+    return None
+
+def init_backlight():
+    """初始化背光控制，如果可能则设置为最大亮度"""
+    global BACKLIGHT_PATH
+    BACKLIGHT_PATH = find_backlight_device()
+    if not BACKLIGHT_PATH:
+        print("警告: 未找到背光设备，背光可能无法调节。请检查 BL 引脚连接。")
+        return False
+
+    try:
+        with open(os.path.join(BACKLIGHT_PATH, "max_brightness"), "r") as f:
+            max_bright = int(f.read().strip())
+        if max_bright == 0:
+            print("警告: 背光最大亮度为 0，无法调节亮度。背光可能未正确启用。")
+            return False
+        # 设置为最大亮度
+        with open(os.path.join(BACKLIGHT_PATH, "brightness"), "w") as f:
+            f.write(str(max_bright))
+        print(f"背光设备: {BACKLIGHT_PATH}, 最大亮度: {max_bright}, 已设置为最亮")
+        return True
+    except Exception as e:
+        print(f"背光初始化失败: {e}")
+        return False
+
+def set_backlight(brightness_percent):
+    """设置背光亮度百分比 (0~100)"""
+    if not BACKLIGHT_PATH:
+        return
+    try:
+        with open(os.path.join(BACKLIGHT_PATH, "max_brightness"), "r") as f:
+            max_bright = int(f.read().strip())
+        if max_bright == 0:
+            return
+        target = int(max_bright * brightness_percent / 100)
+        target = max(0, min(target, max_bright))
+        with open(os.path.join(BACKLIGHT_PATH, "brightness"), "w") as f:
+            f.write(str(target))
+        print(f"背光亮度: {brightness_percent}%")
+    except Exception:
+        pass  # 静默失败
+
+def get_fb_info():
+    """从 sysfs 读取帧缓冲信息: 分辨率, 位深"""
+    width = DEFAULT_WIDTH
+    height = DEFAULT_HEIGHT
+    bpp = 16  # 默认猜测为 16bpp
+
+    # 尝试读取虚拟分辨率
+    try:
+        with open(os.path.join(SYS_FB, "virtual_size"), "r") as f:
+            size = f.read().strip()
+            # 格式如 "320,240"
+            parts = size.split(',')
+            if len(parts) == 2:
+                width = int(parts[0])
+                height = int(parts[1])
+    except:
+        pass
+
+    # 尝试读取位深
+    try:
+        with open(os.path.join(SYS_FB, "bits_per_pixel"), "r") as f:
+            bpp = int(f.read().strip())
+    except:
+        pass
+
+    # 如果 virtual_size 不存在，尝试从 /sys/class/graphics/fb1/modes 读取
+    if width == DEFAULT_WIDTH and height == DEFAULT_HEIGHT:
+        try:
+            with open(os.path.join(SYS_FB, "modes"), "r") as f:
+                mode = f.read().strip()
+                # 格式如 "U:320x240p-0"
+                import re
+                match = re.search(r'(\d+)x(\d+)', mode)
+                if match:
+                    width = int(match.group(1))
+                    height = int(match.group(2))
+        except:
+            pass
+
+    print(f"帧缓冲信息: {width}x{height}, {bpp} bpp")
+    return width, height, bpp
+
+def convert_image_to_fb_format(im, width, height, bpp):
+    """
+    将 PIL Image 对象转换为帧缓冲所需的原始像素数据
+    支持 16bpp RGB565 和 32bpp BGRA
+    """
+    if im.size != (width, height):
+        im = im.resize((width, height), Image.Resampling.LANCZOS)
+
+    im = im.convert('RGBA')
+    pixels = np.array(im)  # (H, W, 4)
+
+    if bpp == 16:
+        # RGB565
+        r = (pixels[:, :, 0] >> 3).astype(np.uint16) << 11
+        g = (pixels[:, :, 1] >> 2).astype(np.uint16) << 5
+        b = (pixels[:, :, 2] >> 3).astype(np.uint16)
+        rgb565 = r | g | b
+        return rgb565.astype('<u2').tobytes()
+    elif bpp == 32:
+        # 通常帧缓冲为 BGRA 顺序
+        bgra = np.dstack((pixels[:, :, 2], pixels[:, :, 1], pixels[:, :, 0], pixels[:, :, 3]))
+        return bgra.tobytes()
+    elif bpp == 24:
+        return pixels[:, :, :3].tobytes()
+    else:
+        # 降级到 16bpp
+        print(f"不支持的位深 {bpp}，将尝试使用 RGB565 转换")
+        r = (pixels[:, :, 0] >> 3).astype(np.uint16) << 11
+        g = (pixels[:, :, 1] >> 2).astype(np.uint16) << 5
+        b = (pixels[:, :, 2] >> 3).astype(np.uint16)
+        rgb565 = r | g | b
+        return rgb565.astype('<u2').tobytes()
+
+def draw_test_pattern(width, height):
+    """生成测试图像：渐变背景 + 文字 + 彩色条纹"""
+    im = Image.new('RGB', (width, height))
+    draw = ImageDraw.Draw(im)
+
+    # 横向渐变背景
+    for x in range(width):
+        r = int(255 * x / width)
+        g = int(255 * (width - x) / width)
+        b = int(128 * (1 - abs(0.5 - x/width) * 2))
+        draw.line([(x, 0), (x, height)], fill=(r, g, b))
+
+    # 彩色矩形条
+    bar_height = 40
+    colors = [(255,0,0), (0,255,0), (0,0,255), (255,255,0), (255,0,255), (0,255,255)]
+    for i, col in enumerate(colors):
+        y0 = i * bar_height
+        y1 = y0 + bar_height
+        draw.rectangle([(0, y0), (width, y1)], fill=col)
+
+    # 文字
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 20)
+    except:
+        font = ImageFont.load_default()
+    draw.text((10, 10), "Raspberry Pi 1A", fill=(255,255,255), font=font)
+    draw.text((10, 35), "ST7789 320x240", fill=(255,255,255), font=font)
+    draw.text((10, 60), "Framebuffer Test", fill=(255,255,255), font=font)
+    draw.text((10, 85), time.strftime("%Y-%m-%d %H:%M:%S"), fill=(255,255,255), font=font)
+
+    return im
+
+def main():
+    print("开始 ST7789 屏幕测试...")
+    backlight_ok = init_backlight()
+
+    # 检查帧缓冲设备是否存在
+    if not os.path.exists(FB_DEVICE):
+        print(f"错误: 帧缓冲设备 {FB_DEVICE} 不存在！")
+        print("请确认驱动已正确加载，并且 config.txt 中的 dtoverlay 已启用。")
+        sys.exit(1)
+
+    # 获取屏幕参数
+    width, height, bpp = get_fb_info()
+    print(f"使用分辨率: {width}x{height}, 位深: {bpp}")
+
+    try:
+        # 打开帧缓冲设备
+        fb_fd = os.open(FB_DEVICE, os.O_RDWR)
+        # 获取屏幕内存大小 (line_length * virtual_yres)
+        # 简单方式：通过 seek 到末尾获取大小
+        fb_size = os.lseek(fb_fd, 0, os.SEEK_END)
+        os.lseek(fb_fd, 0, os.SEEK_SET)
+        print(f"帧缓冲大小: {fb_size} 字节")
+
+        # 生成测试图像并写入
+        test_img = draw_test_pattern(width, height)
+        fb_data = convert_image_to_fb_format(test_img, width, height, bpp)
+        os.write(fb_fd, fb_data)
+        print("图像已写入帧缓冲")
+
+        # 如果背光可用，执行呼吸效果；否则直接等待
+        if backlight_ok:
+            print("开始呼吸灯效果 (亮度循环)，10 秒后继续...")
+            start_time = time.time()
+            while time.time() - start_time < 10:
+                for p in range(0, 101, 5):
+                    set_backlight(p)
+                    time.sleep(0.03)
+                for p in range(100, -1, -5):
+                    set_backlight(p)
+                    time.sleep(0.03)
+            set_backlight(100)
+        else:
+            print("背光不可调节，跳过呼吸效果。屏幕将保持当前亮度。")
+            time.sleep(5)
+
+        # 动态更新时间显示
+        print("更新时间显示 5 次...")
+        for i in range(5):
+            im = draw_test_pattern(width, height)
+            draw = ImageDraw.Draw(im)
+            draw.text((10, 85), time.strftime("%Y-%m-%d %H:%M:%S"), fill=(255,255,255), font=ImageFont.load_default())
+            fb_data = convert_image_to_fb_format(im, width, height, bpp)
+            os.lseek(fb_fd, 0, os.SEEK_SET)  # 定位到开头
+            os.write(fb_fd, fb_data)
+            time.sleep(1)
+
+        print("测试完成，背光保持常亮。")
+
+    except Exception as e:
+        print(f"发生错误: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        if 'fb_fd' in locals():
+            os.close(fb_fd)
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+测试代码：test_st7789_display.py
+python
+#!/usr/bin/env python3
+"""
+ST7789 显示屏独立测试工具
+用法：直接运行，按 Ctrl+C 退出
+"""
+
+import pigpio
+import time
+import sys
+import glob
+import os
+
+# ========== 配置（与原脚本一致） ==========
+def get_last_framebuffer():
+    fb_devices = sorted(glob.glob('/dev/fb[0-9]*'))
+    return fb_devices[-1] if fb_devices else None
+
+FB_DEVICE = get_last_framebuffer()
+if FB_DEVICE is None:
+    print("❌ 未找到任何帧缓冲设备 (/dev/fb*)")
+    sys.exit(1)
+print(f"✅ 使用帧缓冲设备: {FB_DEVICE}")
+
+SCREEN_WIDTH = 320
+SCREEN_HEIGHT = 240
+BYTES_PER_PIXEL = 2          # RGB565
+FRAME_SIZE = SCREEN_WIDTH * SCREEN_HEIGHT * BYTES_PER_PIXEL
+
+# 背光 GPIO（与原脚本一致）
+LED_PIN = 18
+LED_ON = 1                   # 高电平点亮
+
+# 视频文件路径（可选，若不存在则使用彩条图案）
+VIDEO_FILE = "/home/dietpi/test/test_320x240_inv.rgb"
+
+# ========== 连接 pigpiod ==========
+def connect_pigpio(host='127.0.0.1', port=8888, retries=10, delay=0.5):
+    for i in range(retries):
+        pi = pigpio.pi(host, port)
+        if pi.connected:
+            print(f"✅ 已连接到 pigpiod ({host}:{port})")
+            return pi
+        pi.stop()
+        print(f"⏳ 等待 pigpiod 就绪... ({i+1}/{retries})")
+        time.sleep(delay)
+    print("❌ 无法连接 pigpiod，请先运行: sudo systemctl start pigpiod")
+    sys.exit(1)
+
+pi = connect_pigpio()
+
+# 设置背光引脚为输出
+pi.set_mode(LED_PIN, pigpio.OUTPUT)
+
+# ========== 辅助函数 ==========
+def set_backlight(on: bool):
+    """控制背光"""
+    pi.write(LED_PIN, LED_ON if on else (1 - LED_ON))
+
+def clear_screen():
+    """清屏为黑色"""
+    try:
+        with open(FB_DEVICE, 'wb') as fb:
+            fb.write(b'\x00' * FRAME_SIZE)
+    except Exception as e:
+        print(f"⚠️ 清屏失败: {e}")
+
+def write_frame(data):
+    """写入一帧数据到帧缓冲"""
+    try:
+        with open(FB_DEVICE, 'wb') as fb:
+            fb.write(data)
+    except Exception as e:
+        print(f"⚠️ 写入帧缓冲失败: {e}")
+        return False
+    return True
+
+# ========== 生成测试图案（RGB565） ==========
+def generate_color_bar():
+    """
+    生成彩色条纹图案（RGB565 格式）
+    条纹顺序：红、绿、蓝、黄、青、品、白、黑
+    """
+    # 定义 RGB565 颜色值
+    colors = [
+        0xF800,  # 红
+        0x07E0,  # 绿
+        0x001F,  # 蓝
+        0xFFE0,  # 黄
+        0x07FF,  # 青
+        0xF81F,  # 紫
+        0xFFFF,  # 白
+        0x0000,  # 黑
+    ]
+    bar_width = SCREEN_WIDTH // len(colors)
+    frame = bytearray(FRAME_SIZE)
+    for y in range(SCREEN_HEIGHT):
+        for x in range(SCREEN_WIDTH):
+            idx = x // bar_width
+            if idx >= len(colors):
+                idx = len(colors)-1
+            color = colors[idx]
+            # RGB565 小端序写入（与帧缓冲通常要求一致）
+            frame[(y*SCREEN_WIDTH + x)*2]   = color & 0xFF
+            frame[(y*SCREEN_WIDTH + x)*2+1] = (color >> 8) & 0xFF
+    return bytes(frame)
+
+def generate_gradient():
+    """生成灰度渐变（RGB565）"""
+    frame = bytearray(FRAME_SIZE)
+    for y in range(SCREEN_HEIGHT):
+        gray = int(255 * y / SCREEN_HEIGHT)
+        # 将8位灰度转换为 RGB565 的 R=G=B=gray 的近似值
+        r5 = (gray >> 3) & 0x1F
+        g6 = (gray >> 2) & 0x3F
+        b5 = (gray >> 3) & 0x1F
+        rgb565 = (r5 << 11) | (g6 << 5) | b5
+        for x in range(SCREEN_WIDTH):
+            offset = (y*SCREEN_WIDTH + x)*2
+            frame[offset]   = rgb565 & 0xFF
+            frame[offset+1] = (rgb565 >> 8) & 0xFF
+    return bytes(frame)
+
+def load_video_file():
+    """尝试加载已有的视频文件（原始RGB565数据）"""
+    if not os.path.exists(VIDEO_FILE):
+        print(f"⚠️ 视频文件不存在: {VIDEO_FILE}，将使用彩条图案")
+        return None
+    try:
+        with open(VIDEO_FILE, "rb") as f:
+            data = f.read()
+        file_frames = len(data) // FRAME_SIZE
+        if file_frames == 0:
+            print("⚠️ 视频文件太小，改用彩条图案")
+            return None
+        print(f"✅ 已加载视频文件，共 {file_frames} 帧")
+        return data
+    except Exception as e:
+        print(f"⚠️ 读取视频文件失败: {e}")
+        return None
+
+# ========== 播放测试 ==========
+def run_test():
+    print("=" * 50)
+    print("🎨 ST7789 显示屏测试工具")
+    print("   背光控制: GPIO{}".format(LED_PIN))
+    print("   帧缓冲: {}".format(FB_DEVICE))
+    print("   按 Ctrl+C 退出测试")
+    print("=" * 50)
+
+    # 打开背光
+    set_backlight(True)
+    time.sleep(0.5)
+
+    # 准备测试数据
+    video_data = load_video_file()
+    if video_data is None:
+        # 生成彩条图案（静态）或渐变
+        test_pattern = generate_color_bar()
+        # 若需要动态效果，可以生成多帧动画，这里简单选择静态彩条
+        total_frames = 1
+        frame_size = FRAME_SIZE
+        data_for_loop = test_pattern
+        print("▶️  显示静态彩条图案（按 Ctrl+C 退出）")
+    else:
+        total_frames = len(video_data) // FRAME_SIZE
+        data_for_loop = video_data
+        print(f"▶️  循环播放视频 ({total_frames} 帧, 30fps)")
+
+    # 播放循环
+    frame_duration = 1.0 / 30  # 30fps
+    frame_idx = 0
+    try:
+        while True:
+            if total_frames > 1:
+                offset = (frame_idx % total_frames) * FRAME_SIZE
+                frame_data = data_for_loop[offset:offset+FRAME_SIZE]
+                frame_idx += 1
+            else:
+                frame_data = data_for_loop
+            if not write_frame(frame_data):
+                break
+            time.sleep(frame_duration)
+    except KeyboardInterrupt:
+        print("\n⏹️  用户中断测试")
+    finally:
+        clear_screen()
+        set_backlight(False)
+        pi.write(LED_PIN, 0)   # 确保关闭
+        pi.stop()
+        print("✅ 测试结束，已清屏并关闭背光")
+
+if __name__ == "__main__":
+    run_test()
+使用方法
+确保 pigpiod 服务运行（与原脚本相同）：
+
+bash
+sudo systemctl start pigpiod
+sudo systemctl enable pigpiod   # 可选，开机自启
+将测试代码保存为 test_st7789_display.py，并赋予执行权限：
+
+bash
+chmod +x test_st7789_display.py
+运行测试：
+
+bash
+sudo python3 test_st7789_display.py
