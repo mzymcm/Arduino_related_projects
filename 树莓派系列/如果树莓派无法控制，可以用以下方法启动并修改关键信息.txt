@@ -244,10 +244,12 @@ pigs hwver
 ####===========  ST7789 视频播放控制器并使用软串口控制  begin=============#####
 sudo nano /home/dietpi/video_control_v2_fixed.py
 
-
 #!/usr/bin/env python3
 """
-ST7789 视频播放控制器
+ST7789 视频播放控制器 - 抗噪声优化版
+- 启用 GPIO 上拉电阻
+- 过滤无效数据
+- 减少调试刷屏
 """
 
 import pigpio
@@ -258,11 +260,14 @@ import glob
 import re
 
 # ========== 配置 ==========
-TX_PIN = 19
-RX_PIN = 16
+TX_PIN = 22          # 发送引脚（通常不用）
+RX_PIN = 23          # 接收引脚
 BAUD = 38400
 BITS = 8
 
+DEBUG_SERIAL = True   # 改为 False 可关闭所有串口数据打印
+
+# ========== 其他原有配置（保持不变）==========
 def get_last_framebuffer():
     fb_devices = sorted(glob.glob('/dev/fb[0-9]*'))
     return fb_devices[-1] if fb_devices else None
@@ -283,10 +288,10 @@ FPS = 30
 LED_PIN = 18
 LED_ON = 1
 
-EXIT_CONFIRM_TIMEOUT = 2.0   # 两次 exit 的最大间隔
-CMD_COOLDOWN = 0.3           # 同类指令冷却时间（秒）
+EXIT_CONFIRM_TIMEOUT = 2.0
+CMD_COOLDOWN = 0.3
 
-# ========== 连接 pigpiod（带重试） ==========
+# ========== 连接 pigpiod ==========
 def connect_pigpio(host='127.0.0.1', port=8888, retries=20, delay=0.5):
     for i in range(retries):
         pi = pigpio.pi(host, port)
@@ -306,7 +311,7 @@ video_playing = False
 playback_thread = None
 video_stop_event = threading.Event()
 
-exit_pending_time = None      # 用于 exit 二次确认
+exit_pending_time = None
 last_play_time = 0
 last_stop_time = 0
 
@@ -398,7 +403,7 @@ def contains_exit(text):
     n = normalize(text)
     return 'exit' in n
 
-# ========== 实时指令处理器 ==========
+# ========== 优化后的指令处理器（带噪声过滤）==========
 class StableCommandMatcher:
     def __init__(self):
         self.buffer = ""
@@ -406,11 +411,20 @@ class StableCommandMatcher:
 
     def feed(self, raw_bytes):
         global last_play_time, last_stop_time, running
+
+        # 过滤纯噪声：全部为零或只包含控制字符（<32）
+        if all(b == 0 or b < 32 for b in raw_bytes):
+            return
+
         try:
-            self.buffer += raw_bytes.decode('utf-8', errors='ignore')
+            text = raw_bytes.decode('utf-8', errors='ignore')
         except:
             return
 
+        if DEBUG_SERIAL and text.strip():
+            print(f"[RX] {repr(text)}")
+
+        self.buffer += text
         now = time.time()
 
         # 播放指令
@@ -420,8 +434,7 @@ class StableCommandMatcher:
                 start_playback()
                 last_play_time = now
                 self.buffer = ""
-
-        # 停止指令（使用 elif 避免同时触发）
+        # 停止指令
         elif contains_stop(self.buffer):
             if now - last_stop_time > CMD_COOLDOWN:
                 print("📨 [停止] 检测到 stop+tv 指令")
@@ -429,9 +442,8 @@ class StableCommandMatcher:
                 last_stop_time = now
                 self.buffer = ""
 
-        # 退出指令（独立处理）
+        # 退出指令（独立检查）
         if contains_exit(self.buffer):
-            # 移除已匹配的 exit 部分
             idx = self.buffer.lower().find('exit')
             if idx != -1:
                 self.buffer = self.buffer[idx+4:]
@@ -447,20 +459,20 @@ class StableCommandMatcher:
                     print("⏰ 退出确认超时，请重新发送两次 EXIT")
                     self.exit_pending_time = now
 
-        # 定期清理缓冲区
         if len(self.buffer) > 500:
             self.buffer = self.buffer[-200:]
 
-        # 清理超时等待
         if self.exit_pending_time and (now - self.exit_pending_time) > EXIT_CONFIRM_TIMEOUT:
             self.exit_pending_time = None
             print("⏰ 退出指令等待超时，已取消")
 
-# ========== 软串口接收线程（带冲突恢复） ==========
+# ========== 软串口接收线程（带上拉） ==========
 def open_soft_serial_with_retry(pi, rx_pin, baud, bits, max_attempts=5):
-    """尝试打开软串口，如果失败则关闭重试"""
     for attempt in range(max_attempts):
-        # 先尝试关闭可能残留的软串口
+        # 设置为输入并启用内部上拉，消除悬空噪声
+        pi.set_mode(rx_pin, pigpio.INPUT)
+        pi.set_pull_up_down(rx_pin, pigpio.PUD_UP)
+        # 关闭可能残留的软串口
         try:
             pi.bb_serial_read_close(rx_pin)
             time.sleep(0.2)
@@ -468,9 +480,9 @@ def open_soft_serial_with_retry(pi, rx_pin, baud, bits, max_attempts=5):
             pass
         try:
             pi.bb_serial_read_open(rx_pin, baud, bits)
-            print(f"✅ 软串口接收已启动 (GPIO{rx_pin}, {baud}bps)")
+            print(f"✅ 软串口接收已启动 (GPIO{rx_pin}, {baud}bps, 上拉已启用)")
             return True
-        except Exception as e:
+        except pigpio.error as e:
             print(f"⚠️ 打开软串口失败 (尝试 {attempt+1}/{max_attempts}): {e}")
             time.sleep(1)
     return False
@@ -479,14 +491,14 @@ def receiver_thread():
     global running
     matcher = StableCommandMatcher()
 
-    # 尝试打开软串口，失败则退出（让 systemd 重启服务）
     if not open_soft_serial_with_retry(pi, RX_PIN, BAUD, BITS):
-        print("❌ 无法打开软串口，接收线程退出")
+        print(f"❌ 无法在 GPIO{RX_PIN} 上打开软串口，请检查引脚是否空闲")
+        print("   建议改用其他空闲 GPIO（例如 23），并修改代码中的 RX_PIN")
         return
 
     try:
         while running:
-            (count, data) = pi.bb_serial_read(RX_PIN)
+            count, data = pi.bb_serial_read(RX_PIN)
             if count > 0:
                 matcher.feed(data)
             else:
@@ -512,16 +524,26 @@ def main():
     set_backlight(False)
     clear_screen()
 
+    # 打印引脚状态
+    print("🔍 GPIO 状态:")
+    for gpio in [TX_PIN, RX_PIN, LED_PIN]:
+        mode = pi.get_mode(gpio)
+        mode_str = {0: "INPUT", 1: "OUTPUT", 2: "ALT5", 3: "ALT4", 4: "ALT0",
+                    5: "ALT1", 6: "ALT2", 7: "ALT3"}.get(mode, f"未知({mode})")
+        print(f"   GPIO{gpio}: {mode_str}")
+
     recv_thread = threading.Thread(target=receiver_thread, daemon=True)
     recv_thread.start()
 
     print("=" * 50)
-    print("🎬 视频播放控制器 (稳定版 + GPIO冲突修复)")
-    print(f"   使用帧缓冲: {FB_DEVICE}")
-    print("   播放指令: 任意位置同时出现 'star' 和 'tv' (不区分大小写/空格)")
+    print("🎬 视频播放控制器 (抗噪声优化版)")
+    print(f"   帧缓冲: {FB_DEVICE}")
+    print(f"   串口接收引脚: GPIO{RX_PIN} @ {BAUD}bps (已启用上拉)")
+    print("   播放指令: 任意位置同时出现 'star' 和 'tv'")
     print("   停止指令: 任意位置同时出现 'stop' 和 'tv'")
-    print("   退出指令: 2秒内连续两次出现 'exit'")
-    print("   ★ 自动处理 GPIO 占用，服务重启无忧 ★")
+    print("   退出指令: 2秒内连续两次 'exit'")
+    if DEBUG_SERIAL:
+        print("   ★ 调试模式: 显示收到的可打印字符")
     print("=" * 50)
 
     try:
@@ -534,7 +556,6 @@ def main():
         recv_thread.join(timeout=2.0)
         if video_playing:
             stop_playback()
-        # 最后再关闭一次软串口，确保释放
         try:
             pi.bb_serial_read_close(RX_PIN)
         except:
