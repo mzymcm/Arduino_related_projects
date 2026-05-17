@@ -112,7 +112,7 @@ speed 参数可根据实际情况调整，如果显示不稳定，可以降低�
 为了让系统控制台输出到SPI屏幕，需要修改内核命令行参数。
 sudo nano  /boot/firmware/cmdline.txt
 在行尾添加以下参数：
-fbcon=map:10 fbcon=font:VGA8x8
+fbcon=map:1 fbcon=font:VGA8x8
 此举意在将控制台映射到第二个framebuffer设备 /dev/fb1 上。
 
 【3】创建Xorg配置（可选，仅限桌面环境）：
@@ -162,7 +162,9 @@ bgr 用于修正颜色顺序，若测试颜色异常可改为 rgb 或删除。
 
 
 
-
+在终端中输入 dietpi-software 并回车，打开 DietPi 的软件管理菜单。
+提示：为了方便，也可以直接在 Select a search term 框中输入 130 来快速定位。
+列表中的 Python 3 (ID 130) 是一个集合，它会自动安装 Python 3 解释器、pip 包管理工具 和 python3-dev 在内的必要开发文件。
 
 
 
@@ -246,10 +248,10 @@ sudo nano /home/dietpi/video_control_v2_fixed.py
 
 #!/usr/bin/env python3
 """
-ST7789 视频播放控制器 - 抗噪声优化版
+ST7789 视频播放控制器 - 抗噪声优化版，修复 systemd 服务下白屏问题
+- 精确识别 ST7789 帧缓冲设备
 - 启用 GPIO 上拉电阻
 - 过滤无效数据
-- 减少调试刷屏
 """
 
 import pigpio
@@ -258,27 +260,49 @@ import time
 import sys
 import glob
 import re
+import os   # 新增，用于读取 sysfs
 
 # ========== 配置 ==========
 TX_PIN = 22          # 发送引脚（通常不用）
 RX_PIN = 23          # 接收引脚
-BAUD = 38400
+BAUD = 9600
 BITS = 8
 
 DEBUG_SERIAL = True   # 改为 False 可关闭所有串口数据打印
 
-# ========== 其他原有配置（保持不变）==========
-def get_last_framebuffer():
-    fb_devices = sorted(glob.glob('/dev/fb[0-9]*'))
-    return fb_devices[-1] if fb_devices else None
+# ========== 精确获取 ST7789 帧缓冲设备 ==========
+def get_st7789_framebuffer(timeout=5):
+    """
+    等待并返回 ST7789 对应的帧缓冲设备路径。
+    通过读取 /sys/class/graphics/fb*/name 判断驱动名称。
+    """
+    start = time.time()
+    while time.time() - start < timeout:
+        fb_sys_paths = glob.glob('/sys/class/graphics/fb[0-9]*')
+        for sys_path in fb_sys_paths:
+            name_path = os.path.join(sys_path, 'name')
+            try:
+                with open(name_path, 'r') as f:
+                    name = f.read().strip().lower()
+                if 'st7789' in name:
+                    fb_num = os.path.basename(sys_path)  # 例如 'fb1'
+                    return f'/dev/{fb_num}'
+            except Exception:
+                continue
+        time.sleep(0.2)
+    return None
 
-FB_DEVICE = get_last_framebuffer()
+FB_DEVICE = get_st7789_framebuffer()
 if FB_DEVICE is None:
-    print("❌ 未找到任何帧缓冲设备 (/dev/fb*)")
+    print("❌ 未找到 ST7789 帧缓冲设备，请检查驱动是否加载")
     sys.exit(1)
-print(f"✅ 使用帧缓冲设备: {FB_DEVICE}")
+print(f"✅ 使用 ST7789 帧缓冲设备: {FB_DEVICE}")
 
 VIDEO_FILE = "/root/themy/AV/test_320x240_inv.rgb"
+if not os.path.exists(VIDEO_FILE):
+    print(f"❌ 视频文件不存在: {VIDEO_FILE}")
+    sys.exit(1)
+
 SCREEN_WIDTH = 320
 SCREEN_HEIGHT = 240
 BYTES_PER_PIXEL = 2
@@ -469,10 +493,8 @@ class StableCommandMatcher:
 # ========== 软串口接收线程（带上拉） ==========
 def open_soft_serial_with_retry(pi, rx_pin, baud, bits, max_attempts=5):
     for attempt in range(max_attempts):
-        # 设置为输入并启用内部上拉，消除悬空噪声
         pi.set_mode(rx_pin, pigpio.INPUT)
         pi.set_pull_up_down(rx_pin, pigpio.PUD_UP)
-        # 关闭可能残留的软串口
         try:
             pi.bb_serial_read_close(rx_pin)
             time.sleep(0.2)
@@ -493,7 +515,6 @@ def receiver_thread():
 
     if not open_soft_serial_with_retry(pi, RX_PIN, BAUD, BITS):
         print(f"❌ 无法在 GPIO{RX_PIN} 上打开软串口，请检查引脚是否空闲")
-        print("   建议改用其他空闲 GPIO（例如 23），并修改代码中的 RX_PIN")
         return
 
     try:
@@ -568,6 +589,7 @@ if __name__ == "__main__":
 
 
 
+
 ####===========  ST7789 视频播放控制器并使用软串口控制  end=============#####
 
 
@@ -578,6 +600,8 @@ if __name__ == "__main__":
 Description=Video Playback Controller (Soft Serial + ST7789)
 After=pigpiod.service
 Requires=pigpiod.service
+After=multi-user.target
+
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /root/themy/video_control_v2_fixed.py
@@ -585,10 +609,16 @@ WorkingDirectory=/root/themy
 Restart=always
 RestartSec=5
 User=root
+Environment=PYTHONUNBUFFERED=1
+
 [Install]
 WantedBy=multi-user.target
 
-启用服务
+
+
+==========启用服务
+sudo chmod +x /root/themy/video_control_v2_fixed.py
+
 sudo systemctl daemon-reload
 sudo systemctl enable video-control.service
 sudo systemctl start video-control.service
@@ -1206,3 +1236,94 @@ chmod +x test_st7789_display.py
 
 bash
 sudo python3 test_st7789_display.py
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#!/usr/bin/env python3
+import time
+import subprocess
+import os
+import pigpio
+import glob
+
+from PIL import Image, ImageDraw, ImageFont
+
+SCREEN_WIDTH = 320
+SCREEN_HEIGHT = 240
+
+def get_last_framebuffer():
+    fb_devices = sorted(glob.glob('/dev/fb[0-9]*'))
+    return fb_devices[-1] if fb_devices else None
+
+FB_DEVICE = get_last_framebuffer()
+
+LED_PIN = 18
+
+# 连接 pigpio 并打开背光
+pi = pigpio.pi()
+if pi.connected:
+    pi.set_mode(LED_PIN, pigpio.OUTPUT)
+    pi.write(LED_PIN, 1)   # 点亮背光
+    print("背光已打开")
+else:
+    print("警告: 无法连接 pigpio，背光可能未亮")
+
+def get_ip():
+    try:
+        result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
+        ips = result.stdout.strip().split()
+        return ips[0] if ips else "No IP"
+    except:
+        return "N/A"
+
+def draw_info():
+    img = Image.new('RGB', (SCREEN_WIDTH, SCREEN_HEIGHT), color=(0,0,0))
+    draw = ImageDraw.Draw(img)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
+    except:
+        font = ImageFont.load_default()
+    
+    hostname = os.uname().nodename
+    ip = get_ip()
+    draw.text((10,10), f"Host: {hostname}", fill=(0,255,0), font=font)
+    draw.text((10,40), f"IP: {ip}", fill=(255,255,255), font=font)
+    draw.text((10,70), "Test: Info screen works!", fill=(255,0,0), font=font)
+    draw.text((10,100), f"Time: {time.strftime('%Y-%m-%d %H:%M:%S')}", fill=(255,255,0), font=font)
+    
+    # 转换为 RGB565 little-endian
+    rgb565 = bytearray()
+    for y in range(SCREEN_HEIGHT):
+        for x in range(SCREEN_WIDTH):
+            r,g,b = img.getpixel((x,y))
+            rgb565 += (((r>>3)<<11) | ((g>>2)<<5) | (b>>3)).to_bytes(2, 'little')
+    
+    try:
+        with open(FB_DEVICE, 'wb') as fb:
+            fb.write(rgb565)
+        print(f"数据已写入 {FB_DEVICE}")
+    except Exception as e:
+        print(f"写入失败: {e}")
+
+if __name__ == "__main__":
+    draw_info()
+    print("请观察屏幕是否有信息显示")
+    input("按回车键结束并关闭背光...")
+    if pi.connected:
+        pi.write(LED_PIN, 0)
+        pi.stop()
