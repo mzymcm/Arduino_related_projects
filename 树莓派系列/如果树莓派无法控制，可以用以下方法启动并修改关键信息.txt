@@ -273,7 +273,7 @@ if FB_DEVICE is None:
     sys.exit(1)
 print(f"✅ 使用帧缓冲设备: {FB_DEVICE}")
 
-VIDEO_FILE = "/home/dietpi/test/test_320x240_inv.rgb"
+VIDEO_FILE = "/root/themy/AV/test_320x240_inv.rgb"
 SCREEN_WIDTH = 320
 SCREEN_HEIGHT = 240
 BYTES_PER_PIXEL = 2

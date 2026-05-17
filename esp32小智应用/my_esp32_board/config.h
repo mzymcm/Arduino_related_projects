@@ -3,38 +3,38 @@
 
 #include <driver/gpio.h>
 
-// 音频采样率（ESP32 双核 4MB Flash 建议 16000 以节省 RAM）
+// ==================== 音频采样率 ====================
 #define AUDIO_INPUT_SAMPLE_RATE  16000
 #define AUDIO_OUTPUT_SAMPLE_RATE 16000
 
-// 音频 I2S 引脚
-#define AUDIO_I2S_GPIO_MCLK GPIO_NUM_NC      // 不使用 MCLK
-#define AUDIO_I2S_GPIO_BCLK GPIO_NUM_26
-#define AUDIO_I2S_GPIO_WS   GPIO_NUM_25
-#define AUDIO_I2S_GPIO_DOUT GPIO_NUM_33
-#define AUDIO_I2S_GPIO_DIN  GPIO_NUM_32
+// ==================== INMP441 I2S 麦克风引脚 ====================
+#define I2S_MIC_BCLK_PIN         GPIO_NUM_26   // SCK
+#define I2S_MIC_WS_PIN           GPIO_NUM_25   // WS / LRC
+#define I2S_MIC_DIN_PIN          GPIO_NUM_32   // SD
 
-// 音频 Codec I2C
-#define AUDIO_CODEC_I2C_SDA_PIN GPIO_NUM_21
-#define AUDIO_CODEC_I2C_SCL_PIN GPIO_NUM_22
-#define AUDIO_CODEC_PA_PIN       GPIO_NUM_27
-#define AUDIO_CODEC_ES8311_ADDR  ES8311_CODEC_DEFAULT_ADDR   // 0x18
+// ==================== MAX98357A I2S 功放引脚 ====================
+#define I2S_SPK_BCLK_PIN         GPIO_NUM_14   // BCLK
+#define I2S_SPK_WS_PIN           GPIO_NUM_27   // LRC
+#define I2S_SPK_DIN_PIN          GPIO_NUM_33   // DIN
+#define AUDIO_PA_ENABLE_PIN      GPIO_NUM_12   // SD（高电平使能）
 
-// 按键（ESP32 开发板 BOOT 键一般接 GPIO0，按下为低电平）
+// ==================== 按键（BOOT键，按下低电平）====================
 #define BUILTIN_BUTTON_GPIO      GPIO_NUM_0
 
-// LED 控制引脚（使用安全 GPIO13，高电平点亮）
+// ==================== 板载 LED（仅用于状态指示）====================
 #define LED_CONTROL_GPIO         GPIO_NUM_13
 
-// UART1 与 Arduino Nano 通信
+// ==================== UART1 与 Arduino Nano 通信 ====================
 #define UART1_TX_PIN             GPIO_NUM_17
 #define UART1_RX_PIN             GPIO_NUM_16
+#define UART1_BAUD_RATE          38400
 
-// ==================== SSD1306 OLED 显示屏配置 ====================
+// ==================== SSD1306 OLED 显示屏（I2C）====================
 #define OLED_SDA_PIN             GPIO_NUM_19
 #define OLED_SCL_PIN             GPIO_NUM_18
-#define OLED_RST_PIN             GPIO_NUM_NC      // 无复位引脚
+#define OLED_RST_PIN             GPIO_NUM_NC
 #define OLED_RESOLUTION_WIDTH    128
 #define OLED_RESOLUTION_HEIGHT   64
+#define OLED_I2C_ADDR            0x3C
 
 #endif

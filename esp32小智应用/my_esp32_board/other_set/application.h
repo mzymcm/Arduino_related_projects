@@ -10,6 +10,7 @@
 #include <mutex>
 #include <deque>
 #include <memory>
+#include <functional>   // 新增
 
 #include "protocol.h"
 #include "ota.h"
@@ -32,7 +33,6 @@
 #define MAIN_EVENT_STOP_LISTENING       (1 << 11)
 #define MAIN_EVENT_STATE_CHANGED        (1 << 12)
 
-
 enum AecMode {
     kAecOff,
     kAecOnDeviceSide,
@@ -45,64 +45,22 @@ public:
         static Application instance;
         return instance;
     }
-    // Delete copy constructor and assignment operator
     Application(const Application&) = delete;
     Application& operator=(const Application&) = delete;
 
-    /**
-     * Initialize the application
-     * This sets up display, audio, network callbacks, etc.
-     * Network connection starts asynchronously.
-     */
     void Initialize();
-
-    /**
-     * Run the main event loop
-     * This function runs in the main task and never returns.
-     * It handles all events including network, state changes, and user interactions.
-     */
     void Run();
 
     DeviceState GetDeviceState() const { return state_machine_.GetState(); }
     bool IsVoiceDetected() const { return audio_service_.IsVoiceDetected(); }
-    
-    /**
-     * Request state transition
-     * Returns true if transition was successful
-     */
     bool SetDeviceState(DeviceState state);
-
-    /**
-     * Schedule a callback to be executed in the main task
-     */
     void Schedule(std::function<void()>&& callback);
-
-    /**
-     * Alert with status, message, emotion and optional sound
-     */
     void Alert(const char* status, const char* message, const char* emotion = "", const std::string_view& sound = "");
     void DismissAlert();
-
     void AbortSpeaking(AbortReason reason);
-
-    /**
-     * Toggle chat state (event-based, thread-safe)
-     * Sends MAIN_EVENT_TOGGLE_CHAT to be handled in Run()
-     */
     void ToggleChatState();
-
-    /**
-     * Start listening (event-based, thread-safe)
-     * Sends MAIN_EVENT_START_LISTENING to be handled in Run()
-     */
     void StartListening();
-
-    /**
-     * Stop listening (event-based, thread-safe)
-     * Sends MAIN_EVENT_STOP_LISTENING to be handled in Run()
-     */
     void StopListening();
-
     void Reboot();
     void WakeWordInvoke(const std::string& wake_word);
     bool UpgradeFirmware(const std::string& url, const std::string& version = "");
@@ -113,18 +71,12 @@ public:
     void PlaySound(const std::string_view& sound);
     AudioService& GetAudioService() { return audio_service_; }
 
-    /**
-     * 通过文本向 AI 提问，并通过回调返回答案（用于串口等场景）
-     * @param text 问题文本
-     * @param callback 答案回调，在主任务中调用
-     */
     void SendTextMessage(const std::string& text, std::function<void(const std::string& response)> callback);
-    
-    /**
-     * Reset protocol resources (thread-safe)
-     * Can be called from any task to release resources allocated after network connected
-     * This includes closing audio channel, resetting protocol and ota objects
-     */
+
+    // ==================== 新增拦截器 ====================
+    using TextInterceptor = std::function<bool(const std::string& text, std::function<void(const std::string&)> callback)>;
+    void SetTextMessageInterceptor(TextInterceptor interceptor) { text_interceptor_ = interceptor; }
+
     void ResetProtocol();
 
 private:
@@ -148,13 +100,15 @@ private:
     std::string uart_query_text_;
     bool uart_query_pending_ = false;
 
+    // 新增拦截器成员
+    TextInterceptor text_interceptor_ = nullptr;
+
     bool has_server_time_ = false;
     bool aborted_ = false;
     bool assets_version_checked_ = false;
-    bool play_popup_on_listening_ = false;  // Flag to play popup sound after state changes to listening
+    bool play_popup_on_listening_ = false;
     int clock_ticks_ = 0;
     TaskHandle_t activation_task_handle_ = nullptr;
-
 
     // Event handlers
     void HandleStateChangedEvent();
@@ -168,21 +122,15 @@ private:
     void ContinueOpenAudioChannel(ListeningMode mode);
     void ContinueWakeWordInvoke(const std::string& wake_word);
 
-    // Activation task (runs in background)
     void ActivationTask();
-
-    // Helper methods
     void CheckAssetsVersion();
     void CheckNewVersion();
     void InitializeProtocol();
     void ShowActivationCode(const std::string& code, const std::string& message);
     void SetListeningMode(ListeningMode mode);
     ListeningMode GetDefaultListeningMode() const;
-    
-    // State change handler called by state machine
     void OnStateChanged(DeviceState old_state, DeviceState new_state);
 };
-
 
 class TaskPriorityReset {
 public:

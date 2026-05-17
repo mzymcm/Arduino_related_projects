@@ -1140,6 +1140,12 @@ void Application::ResetProtocol() {
 }
 
 void Application::SendTextMessage(const std::string& text, std::function<void(const std::string&)> callback) {
+    // 优先使用本地拦截器（控制电视、LED、窗帘等）
+    if (text_interceptor_ && text_interceptor_(text, callback)) {
+        return;  // 已处理，不再发送给云端
+    }
+
+    // 以下是原有的 UART 查询实现（保持不变）
     Schedule([this, text, callback = std::move(callback)]() {
         if (!protocol_) {
             if (callback) callback("Protocol not initialized");
