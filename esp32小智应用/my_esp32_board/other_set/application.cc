@@ -312,14 +312,18 @@ void Application::HandleActivationDoneEvent() {
     display->ShowNotification(message.c_str());
     display->SetChatMessage("system", "");
 
-    // Release OTA object after activation is complete
     ota_.reset();
     auto& board = Board::GetInstance();
     board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
 
+    // 自动进入对话模式（模拟按 BOOT 键）
     Schedule([this]() {
-        // Play the success sound to indicate the device is ready
+        // 可选：播放提示音
         audio_service_.PlaySound(Lang::Sounds::OGG_SUCCESS);
+        // 延迟一点点，让提示音播完
+        vTaskDelay(pdMS_TO_TICKS(500));
+        // 直接调用 ToggleChatState，它会完整地打开通道并开始聆听
+        ToggleChatState();
     });
 }
 

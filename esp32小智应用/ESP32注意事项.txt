@@ -3,3 +3,28 @@ GPIO0	高电平 → 正常运行；低电平 → 下载模式	被外部电路拉
 GPIO2	启动时若为低，可能触发蓝灯闪烁		接LED无限流电阻时易误拉低 
 GPIO12	内部Flash电压配置相关					强下拉可能导致启动失败 
 GPIO15	必须为低电平（通常内置下拉）			严禁上拉！否则几乎必死机 
+
+
+
+麦克风：
+WS		接 GPIO25
+SCK		接 GPIO26
+SD		接 GPIO32
+L/R		接 GND
+VDD		接 电源 VCC 3.3V
+GND		接 GND
+
+喇 叭：
+DIN		接 GPIO33
+BCLK		接 GPIO14
+LRCK		接 GPIO27
+GAIN		不用接
+SD		不用接
+GND		接 GND
+VIN		接 电源 VCC 3.3V
+
+0.96-OLED屏幕：
+GND		接 GND
+VCC		接 电源 VCC 3.3V
+SCL		接 GPIO15
+SDA		接 GPIO4

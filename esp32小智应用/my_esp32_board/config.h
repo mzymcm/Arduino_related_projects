@@ -27,11 +27,11 @@
 // ==================== UART1 与 Arduino Nano 通信 ====================
 #define UART1_TX_PIN             GPIO_NUM_17
 #define UART1_RX_PIN             GPIO_NUM_16
-#define UART1_BAUD_RATE          38400
+#define UART1_BAUD_RATE          9600
 
 // ==================== SSD1306 OLED 显示屏（I2C）====================
-#define OLED_SDA_PIN             GPIO_NUM_19
-#define OLED_SCL_PIN             GPIO_NUM_18
+#define OLED_SDA_PIN             GPIO_NUM_21   // 新引脚
+#define OLED_SCL_PIN             GPIO_NUM_22   // 新引脚
 #define OLED_RST_PIN             GPIO_NUM_NC
 #define OLED_RESOLUTION_WIDTH    128
 #define OLED_RESOLUTION_HEIGHT   64

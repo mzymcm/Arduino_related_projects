@@ -27,7 +27,7 @@ protected:
     virtual void SetBrightnessImpl(uint8_t brightness) override { (void)brightness; }
 };
 
-// ==================== 虚拟显示器（后备方案）====================
+// ==================== 虚拟显示器 ====================
 class DummyDisplay : public Display {
 public:
     virtual void SetupUI() override {}
@@ -41,13 +41,17 @@ public:
     virtual void Unlock() override {}
 };
 
-// ==================== I2S 音频编解码器（INMP441 + MAX98357A）====================
+// ==================== I2S 音频编解码器（最终修正版）====================
 class I2SAudioCodec : public AudioCodec {
 public:
     I2SAudioCodec() {
-        ESP_LOGI(TAG, "Initializing I2S Audio Codec...");
+        ESP_LOGI(TAG, "Initializing I2S Audio Codec");
 
-        // 1. 配置功放使能引脚（初始关闭）
+        // 设置采样率（基类的 protected 成员）
+        input_sample_rate_ = AUDIO_INPUT_SAMPLE_RATE;
+        output_sample_rate_ = AUDIO_OUTPUT_SAMPLE_RATE;
+
+        // 配置功放使能引脚（初始关闭）
         gpio_config_t pa_conf = {
             .pin_bit_mask = 1ULL << AUDIO_PA_ENABLE_PIN,
             .mode = GPIO_MODE_OUTPUT,
@@ -57,23 +61,22 @@ public:
         };
         gpio_config(&pa_conf);
         gpio_set_level(AUDIO_PA_ENABLE_PIN, 0);
-        vTaskDelay(pdMS_TO_TICKS(10)); // 确保电平稳定
+        vTaskDelay(pdMS_TO_TICKS(10));
 
-        // 2. 麦克风通道 (I2S_NUM_0, RX, 单声道, 标准 I2S 格式)
+        // ---------- 麦克风通道 (RX) ----------
         i2s_chan_config_t mic_chan_cfg = {
             .id = I2S_NUM_0,
             .role = I2S_ROLE_MASTER,
             .dma_desc_num = 8,
-            .dma_frame_num = 256,
+            .dma_frame_num = 1024,
             .auto_clear = true,
         };
-        esp_err_t err = i2s_new_channel(&mic_chan_cfg, &mic_handle_, NULL);
+        esp_err_t err = i2s_new_channel(&mic_chan_cfg, NULL, &rx_handle_);  // rx_handle_ 为接收通道
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to create I2S mic channel: %s", esp_err_to_name(err));
+            ESP_LOGE(TAG, "Failed to create mic channel: %s", esp_err_to_name(err));
             return;
         }
 
-        // 使用标准 I2S 格式 (Philips)，单声道，16位数据
         i2s_std_config_t mic_std_cfg = {
             .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(AUDIO_INPUT_SAMPLE_RATE),
             .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
@@ -83,36 +86,32 @@ public:
                 .ws = I2S_MIC_WS_PIN,
                 .dout = GPIO_NUM_NC,
                 .din = I2S_MIC_DIN_PIN,
-                .invert_flags = {
-                    .mclk_inv = false,
-                    .bclk_inv = false,
-                    .ws_inv = false
-                }
+                .invert_flags = { false, false, false }
             },
         };
-        err = i2s_channel_init_std_mode(mic_handle_, &mic_std_cfg);
+        err = i2s_channel_init_std_mode(rx_handle_, &mic_std_cfg);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "Failed to init mic I2S: %s", esp_err_to_name(err));
             return;
         }
-        err = i2s_channel_enable(mic_handle_);
+        err = i2s_channel_enable(rx_handle_);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "Failed to enable mic I2S: %s", esp_err_to_name(err));
         } else {
-            ESP_LOGI(TAG, "Mic I2S enabled (BCLK=%d, WS=%d, DIN=%d)", I2S_MIC_BCLK_PIN, I2S_MIC_WS_PIN, I2S_MIC_DIN_PIN);
+            ESP_LOGI(TAG, "Mic enabled (BCLK=%d, WS=%d, DIN=%d)", I2S_MIC_BCLK_PIN, I2S_MIC_WS_PIN, I2S_MIC_DIN_PIN);
         }
 
-        // 3. 扬声器通道 (I2S_NUM_1, TX, 单声道, 标准 I2S 格式)
+        // ---------- 扬声器通道 (TX) ----------
         i2s_chan_config_t spk_chan_cfg = {
             .id = I2S_NUM_1,
             .role = I2S_ROLE_MASTER,
             .dma_desc_num = 8,
-            .dma_frame_num = 256,
+            .dma_frame_num = 1024,
             .auto_clear = true,
         };
-        err = i2s_new_channel(&spk_chan_cfg, NULL, &spk_handle_);
+        err = i2s_new_channel(&spk_chan_cfg, &tx_handle_, NULL);  // tx_handle_ 为发送通道
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to create I2S speaker channel: %s", esp_err_to_name(err));
+            ESP_LOGE(TAG, "Failed to create speaker channel: %s", esp_err_to_name(err));
             return;
         }
 
@@ -125,90 +124,74 @@ public:
                 .ws = I2S_SPK_WS_PIN,
                 .dout = I2S_SPK_DIN_PIN,
                 .din = GPIO_NUM_NC,
-                .invert_flags = {
-                    .mclk_inv = false,
-                    .bclk_inv = false,
-                    .ws_inv = false
-                }
+                .invert_flags = { false, false, false }
             },
         };
-        err = i2s_channel_init_std_mode(spk_handle_, &spk_std_cfg);
+        err = i2s_channel_init_std_mode(tx_handle_, &spk_std_cfg);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "Failed to init speaker I2S: %s", esp_err_to_name(err));
             return;
         }
-        err = i2s_channel_enable(spk_handle_);
+        err = i2s_channel_enable(tx_handle_);
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "Failed to enable speaker I2S: %s", esp_err_to_name(err));
         } else {
-            ESP_LOGI(TAG, "Speaker I2S enabled (BCLK=%d, WS=%d, DIN=%d)", I2S_SPK_BCLK_PIN, I2S_SPK_WS_PIN, I2S_SPK_DIN_PIN);
+            ESP_LOGI(TAG, "Speaker enabled (BCLK=%d, WS=%d, DIN=%d)", I2S_SPK_BCLK_PIN, I2S_SPK_WS_PIN, I2S_SPK_DIN_PIN);
         }
 
-        ESP_LOGI(TAG, "I2SAudioCodec initialized successfully");
+        ESP_LOGI(TAG, "I2SAudioCodec ready");
     }
 
     virtual ~I2SAudioCodec() {
-        if (mic_handle_) {
-            i2s_channel_disable(mic_handle_);
-            i2s_del_channel(mic_handle_);
+        if (rx_handle_) {
+            i2s_channel_disable(rx_handle_);
+            i2s_del_channel(rx_handle_);
         }
-        if (spk_handle_) {
-            i2s_channel_disable(spk_handle_);
-            i2s_del_channel(spk_handle_);
+        if (tx_handle_) {
+            i2s_channel_disable(tx_handle_);
+            i2s_del_channel(tx_handle_);
         }
         gpio_set_level(AUDIO_PA_ENABLE_PIN, 0);
     }
 
+    // ========== 实现纯虚函数 ==========
     virtual int Read(int16_t* dest, int samples) override {
-        if (!mic_handle_) return 0;
+        if (!rx_handle_) return 0;
         size_t bytes_read = 0;
-        // 超时设为 1 秒，避免频繁失败
-        esp_err_t err = i2s_channel_read(mic_handle_, dest, samples * sizeof(int16_t), &bytes_read, pdMS_TO_TICKS(1000));
+        esp_err_t err = i2s_channel_read(rx_handle_, dest, samples * sizeof(int16_t), &bytes_read, pdMS_TO_TICKS(1000));
         if (err != ESP_OK) {
             ESP_LOGW(TAG, "I2S read error: %s", esp_err_to_name(err));
             return 0;
         }
-        int samples_read = bytes_read / sizeof(int16_t);
-        if (samples_read == 0) {
-            ESP_LOGD(TAG, "I2S read returned 0 samples (may need longer DMA buffer)");
-        }
-        return samples_read;
+        return bytes_read / sizeof(int16_t);
     }
 
     virtual int Write(const int16_t* src, int samples) override {
-        if (!spk_handle_) {
+        if (!tx_handle_) {
             ESP_LOGW(TAG, "Speaker handle is null");
             return 0;
         }
 
-        // 首次写入时使能功放并等待稳定
         if (!pa_enabled_) {
             gpio_set_level(AUDIO_PA_ENABLE_PIN, 1);
-            vTaskDelay(pdMS_TO_TICKS(10)); // MAX98357A 需要短暂稳定时间
+            vTaskDelay(pdMS_TO_TICKS(50));
             pa_enabled_ = true;
             ESP_LOGI(TAG, "PA enabled (first write)");
         }
 
-        // 单声道直接发送（扬声器通道已配置为单声道）
         size_t bytes_written = 0;
-        esp_err_t err = i2s_channel_write(spk_handle_, src, samples * sizeof(int16_t), &bytes_written, pdMS_TO_TICKS(1000));
+        esp_err_t err = i2s_channel_write(tx_handle_, src, samples * sizeof(int16_t), &bytes_written, pdMS_TO_TICKS(1000));
         if (err != ESP_OK) {
             ESP_LOGW(TAG, "I2S write error: %s", esp_err_to_name(err));
             return 0;
         }
         return bytes_written / sizeof(int16_t);
-    }
-
-    void SetOutputEnable(bool enable) {
-        gpio_set_level(AUDIO_PA_ENABLE_PIN, enable ? 1 : 0);
-        pa_enabled_ = enable;
-        if (enable) vTaskDelay(pdMS_TO_TICKS(10));
-        ESP_LOGI(TAG, "PA manually %s", enable ? "ON" : "OFF");
+    // 强制使能麦克风输入（测试用）
+    EnableInput(true);
+    ESP_LOGI(TAG, "Input enabled by constructor");
     }
 
 private:
-    i2s_chan_handle_t mic_handle_ = nullptr;
-    i2s_chan_handle_t spk_handle_ = nullptr;
     bool pa_enabled_ = false;
 };
 
@@ -237,7 +220,7 @@ private:
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "I2C bus init failed: %s", esp_err_to_name(err));
         } else {
-            ESP_LOGI(TAG, "I2C bus created on SDA=%d, SCL=%d", OLED_SDA_PIN, OLED_SCL_PIN);
+            ESP_LOGI(TAG, "I2C bus created (SDA=%d, SCL=%d)", OLED_SDA_PIN, OLED_SCL_PIN);
         }
     }
 
@@ -257,7 +240,7 @@ private:
             .lcd_cmd_bits = 8,
             .lcd_param_bits = 8,
             .flags = { .dc_low_on_data = 0, .disable_control_phase = 0 },
-            .scl_speed_hz = 400 * 1000,  // 提高速度至 400kHz
+            .scl_speed_hz = 400 * 1000,
         };
         esp_err_t err = esp_lcd_new_panel_io_i2c_v2(display_i2c_bus_, &io_config, &panel_io_);
         if (err != ESP_OK) {
@@ -304,7 +287,7 @@ private:
         }
 
         display_ = new OledDisplay(panel_io_, panel_, OLED_RESOLUTION_WIDTH, OLED_RESOLUTION_HEIGHT, false, false);
-        ESP_LOGI(TAG, "SSD1306 display initialized successfully");
+        ESP_LOGI(TAG, "SSD1306 display initialized");
     }
 
     void InitializeUart1() {
@@ -341,7 +324,6 @@ private:
     }
 
     void InitializeButtons() {
-        // LED 引脚初始化（状态指示）
         gpio_config_t io_conf = {
             .pin_bit_mask = 1ULL << LED_CONTROL_GPIO,
             .mode = GPIO_MODE_OUTPUT,
@@ -352,7 +334,6 @@ private:
         gpio_config(&io_conf);
         gpio_set_level(LED_CONTROL_GPIO, 0);
 
-        // 按键（BOOT 引脚，低电平有效）
         boot_button_.OnClick([this]() { Application::GetInstance().ToggleChatState(); });
         boot_button_.OnLongPress([this]() { EnterWifiConfigMode(); });
     }
@@ -383,9 +364,9 @@ public:
         );
 
         if (display_ == nullptr) {
-            ESP_LOGW(TAG, "Real OLED not available, using dummy display.");
+            ESP_LOGW(TAG, "Real OLED unavailable, using dummy display");
         } else {
-            ESP_LOGI(TAG, "Real OLED display enabled.");
+            ESP_LOGI(TAG, "Real OLED display enabled");
         }
         ESP_LOGI(TAG, "MyESP32Board fully initialized");
     }
@@ -396,11 +377,7 @@ public:
     }
 
     virtual Display* GetDisplay() override {
-        if (display_ != nullptr) {
-            return display_;
-        } else {
-            return &dummy_display_;
-        }
+        return (display_ != nullptr) ? display_ : static_cast<Display*>(&dummy_display_);
     }
 
     virtual Backlight* GetBacklight() override {
