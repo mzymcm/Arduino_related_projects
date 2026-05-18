@@ -1,0 +1,81 @@
+1、CMakeLists.txt 中加入我的项目板子
+elseif(CONFIG_BOARD_TYPE_MY_ESP32_BOARD)
+    set(BOARD_TYPE "my_esp32_board")
+    set(BUILTIN_TEXT_FONT font_puhui_basic_14_1)
+    set(BUILTIN_ICON_FONT font_awesome_14_1)
+2、Kconfig.projbuild 中加入我的项目相关参数
+    config BOARD_TYPE_MY_ESP32_BOARD
+            bool "My ESP32 Board (双核 ESP32 + OLED 优化引脚)"
+            depends on IDF_TARGET_ESP32
+3、config.h 中的引脚定义等参数
+// ==================== 音频采样率 ====================
+#define AUDIO_INPUT_SAMPLE_RATE  16000
+#define AUDIO_OUTPUT_SAMPLE_RATE 16000
+// ==================== INMP441 I2S 麦克风引脚 ====================
+#define I2S_MIC_BCLK_PIN         GPIO_NUM_26   // SCK
+#define I2S_MIC_WS_PIN           GPIO_NUM_25   // WS / LRC
+#define I2S_MIC_DIN_PIN          GPIO_NUM_32   // SD
+// ==================== MAX98357A I2S 功放引脚 ====================
+#define I2S_SPK_BCLK_PIN         GPIO_NUM_14   // BCLK
+#define I2S_SPK_WS_PIN           GPIO_NUM_27   // LRC
+#define I2S_SPK_DIN_PIN          GPIO_NUM_33   // DIN
+#define AUDIO_PA_ENABLE_PIN      GPIO_NUM_12   // SD（高电平使能）
+// ==================== 按键（BOOT键，按下低电平）====================
+#define BUILTIN_BUTTON_GPIO      GPIO_NUM_0
+// ==================== 板载 LED（仅用于状态指示）====================
+#define LED_CONTROL_GPIO         GPIO_NUM_13
+// ==================== 自定义UART 与 Arduino Nano 通信 ====================
+#define UART1_TX_PIN             GPIO_NUM_17
+#define UART1_RX_PIN             GPIO_NUM_16
+#define UART1_BAUD_RATE          9600
+// ==================== SSD1306 OLED 显示屏（I2C）====================
+#define OLED_SDA_PIN             GPIO_NUM_21   // 新引脚
+#define OLED_SCL_PIN             GPIO_NUM_22   // 新引脚
+#define OLED_RST_PIN             GPIO_NUM_NC
+#define OLED_RESOLUTION_WIDTH    128
+#define OLED_RESOLUTION_HEIGHT   64
+#define OLED_I2C_ADDR            0x3C
+4、项目需求：
+一、我的项目AI是一个可以通过语音对话，对话中如果有“开灯”、“打开电视”、“拉开窗帘”等词汇，esp32要通过 自定义UART向 Arduino Nano发送指令文本，Arduino Nano 接收到指令文本后再进行下一步处理。
+二、由于人的语言的多样化，开灯的说法很多，我想建个语言命令和指令字符的对应数组，以上想加还可以随时补充，又能给Arduino Nano发送标准指令：
+[["开灯","打开灯"],["open_led"]],
+[["关灯","关闭灯","关上灯"],["close_led"]],
+[["打开电视","开电视","看电视"],["open_tv"]],
+[["关上电视","关闭电视","关电视","不看电视"],["close_tv"]],
+[["拉开窗帘","打开窗帘","天亮了"],["open_cut"]],
+[["拉上窗帘","关闭窗帘","天黑了"],["close_cut"]],........
+三、由于我的项目的特殊需求，所以要求AI不能休眠，一是开机不需要按 boot 键就进入聆听状态，第二要随时要听对话，需要随时保持聆听状态，不能说goodbey
+四、Arduino Nano通过串口发给esp32文本，AI同时能通过串口反馈给Arduino Nano
+
+请根据我的项目需求，生成目标代码 config.h 、my_esp32_board.cc 、.......
+
+
+
+
+
+
+
+编译与烧录步骤
+设置目标芯片：
+bash
+idf.py set-target esp32
+
+配置项目：
+bash
+idf.py menuconfig
+进入 Xiaozhi Assistant → Board Type，选择 My ESP32 Board (双核 ESP32 + OLED 优化引脚)。
+
+清理并构建：
+bash
+idf.py clean
+idf.py build
+
+idf.py fullclean
+idf.py build
+
+烧录并监视：
+bash
+idf.py erase_flash
+idf.py -p COM7 flash monitor
+
+验证 OLED 显示：上电后屏幕应显示 "XiaoZhi AI Ready"，配网或配对时验证码会显示在屏幕上。
