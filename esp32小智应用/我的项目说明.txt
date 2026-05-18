@@ -1,3 +1,6 @@
+这是小智的基础代码，你先梳理一下代码逻辑，接下来我需要你在代码中找到目标代码，我要在此基础上做个项目，你先分析一下所有代码。
+
+
 1、CMakeLists.txt 中加入我的项目板子
 elseif(CONFIG_BOARD_TYPE_MY_ESP32_BOARD)
     set(BOARD_TYPE "my_esp32_board")
@@ -25,8 +28,8 @@ elseif(CONFIG_BOARD_TYPE_MY_ESP32_BOARD)
 // ==================== 板载 LED（仅用于状态指示）====================
 #define LED_CONTROL_GPIO         GPIO_NUM_13
 // ==================== 自定义UART 与 Arduino Nano 通信 ====================
-#define UART1_TX_PIN             GPIO_NUM_17
-#define UART1_RX_PIN             GPIO_NUM_16
+#define UART1_TX_PIN             GPIO_NUM_19
+#define UART1_RX_PIN             GPIO_NUM_18
 #define UART1_BAUD_RATE          9600
 // ==================== SSD1306 OLED 显示屏（I2C）====================
 #define OLED_SDA_PIN             GPIO_NUM_21   // 新引脚
@@ -44,9 +47,9 @@ elseif(CONFIG_BOARD_TYPE_MY_ESP32_BOARD)
 [["关上电视","关闭电视","关电视","不看电视"],["close_tv"]],
 [["拉开窗帘","打开窗帘","天亮了"],["open_cut"]],
 [["拉上窗帘","关闭窗帘","天黑了"],["close_cut"]],........
-三、由于我的项目的特殊需求，所以要求AI不能休眠，一是开机不需要按 boot 键就进入聆听状态，第二要随时要听对话，需要随时保持聆听状态，不能说goodbey
-四、Arduino Nano通过串口发给esp32文本，AI同时能通过串口反馈给Arduino Nano
-
+三、Arduino Nano通过串口发给esp32文本，esp32当做对话给AI，同时能通过串口将AI回答的文本再反馈给Arduino Nano
+注意串口传送的文本就半角字符还有全角的中文，所以你要考虑这个问题，不要出现乱码的问题。是否统一用UTF-8?你来设计方案。
+四、由于我的项目的特殊需求，所以要求AI不能休眠，一是开机不需要按 boot 键就进入聆听状态，第二要随时要听对话，需要随时保持聆听状态，不能说goodbey，但这里要注意别整的死循环了，只显示聆听，但聆听不了，发生麦克不起作用的问题。
 请根据我的项目需求，生成目标代码 config.h 、my_esp32_board.cc 、.......
 
 
