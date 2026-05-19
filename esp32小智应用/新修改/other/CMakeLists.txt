@@ -803,10 +803,12 @@ elseif(CONFIG_BOARD_TYPE_AI_VOX3)
     set(BUILTIN_TEXT_FONT font_puhui_basic_20_4)
     set(BUILTIN_ICON_FONT font_awesome_20_4)
     set(DEFAULT_EMOJI_COLLECTION twemoji_64)
+
 elseif(CONFIG_BOARD_TYPE_MY_ESP32_BOARD)
     set(BOARD_TYPE "my_esp32_board")
     set(BUILTIN_TEXT_FONT font_puhui_basic_14_1)
     set(BUILTIN_ICON_FONT font_awesome_14_1)
+
 endif()
 
 if(MANUFACTURER)

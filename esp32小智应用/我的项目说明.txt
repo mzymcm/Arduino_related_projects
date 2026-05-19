@@ -49,7 +49,30 @@ elseif(CONFIG_BOARD_TYPE_MY_ESP32_BOARD)
 [["拉上窗帘","关闭窗帘","天黑了"],["close_cut"]],........
 三、Arduino Nano通过串口发给esp32文本，esp32当做对话给AI，同时能通过串口将AI回答的文本再反馈给Arduino Nano
 注意串口传送的文本就半角字符还有全角的中文，所以你要考虑这个问题，不要出现乱码的问题。是否统一用UTF-8?你来设计方案。
+建议思路：当AI接到对话时变成文本时，进行判断看里面有没有 语言命令 数组中的字串，如开灯、关灯等字串。如果有就不提交AI回答了，直接输出已开灯或已关灯。同时向串口发出open_led或close_led 指令字串。
+
+我想这样实现：在 application.cc 中，控制用户语音文本日志输出（即 >> 你好。 这类日志）的代码段位于 OnIncomingJson 回调函数内处理 type 为 "stt" 的分支：
+cpp
+} else if (strcmp(type->valuestring, "stt") == 0) {
+    auto text = cJSON_GetObjectItem(root, "text");
+    if (cJSON_IsString(text)) {
+        ESP_LOGI(TAG, ">> %s", text->valuestring);   // <-- 这就是需要的日志输出代码
+        Schedule([display, message = std::string(text->valuestring)]() {
+            display->SetChatMessage("user", message.c_str());
+        });
+    }
+}
+
+ESP_LOGI(TAG, ">> %s", text->valuestring);   在这段之前加上一段代码，用于检查用户语音文本中是否 有 语言命令 数组中的字串 ，如果有直接输出已开灯或已关灯。同时向串口发出open_led或close_led 指令字串。
+
+即：
+用户说“开灯” → 匹配到 open_led → 显示“已开灯”，串口发送 open_led\n，关闭音频通道，不再走 AI 对话。
+用户说“今天天气怎么样” → 未匹配 → 正常显示用户文字，服务器继续处理并返回 AI 回答。
+
 四、由于我的项目的特殊需求，所以要求AI不能休眠，一是开机不需要按 boot 键就进入聆听状态，第二要随时要听对话，需要随时保持聆听状态，不能说goodbey，但这里要注意别整的死循环了，只显示聆听，但聆听不了，发生麦克不起作用的问题。
+
+小智的逻辑好像是进入聆听状态后同时打开麦克，如果只进入聆听状态不打开麦克,麦克不工作。
+
 请根据我的项目需求，生成目标代码 config.h 、my_esp32_board.cc 、.......
 
 

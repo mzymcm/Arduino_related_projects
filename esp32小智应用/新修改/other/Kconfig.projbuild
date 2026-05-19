@@ -557,6 +557,17 @@ choice BOARD_TYPE
     config BOARD_TYPE_AI_VOX3
         bool "NULLLAB-AI-VOX3"
         depends on IDF_TARGET_ESP32S3
+
+
+config BOARD_TYPE_MY_ESP32_BOARD
+    bool "My ESP32 Board (双核 ESP32 + OLED 优化引脚)"
+    depends on IDF_TARGET_ESP32
+    select AUDIO_I2S_METHOD_SIMPLEX
+    help
+        Custom board with ESP32, INMP441 mic, MAX98357A speaker,
+        SSD1306 OLED, and UART communication with Arduino Nano.
+
+
 endchoice
 
 choice
@@ -920,15 +931,6 @@ menu "Camera Configuration"
             **Incorrect usage may result in incorrect image colors!**
 
             ATTENTION: If the option CAMERA_SENSOR_SWAP_PIXEL_BYTE_ORDER is available for your sensor, please use that instead.
-
-config BOARD_TYPE_MY_ESP32_BOARD
-    bool "My ESP32 Board (双核 ESP32 + OLED 优化引脚)"
-    depends on IDF_TARGET_ESP32
-    help
-        Select this for your custom ESP32 board with INMP441 mic,
-        MAX98357A amplifier, SSD1306 OLED, and UART to Arduino Nano.
-
-
 
     menuconfig XIAOZHI_ENABLE_ROTATE_CAMERA_IMAGE
         bool "Enable Camera Image Rotation"
