@@ -1,0 +1,24 @@
+✅ 问题总结
+你手上的 ESP32 模块（INMP441 麦克风 + MAX98357A 功放）硬件本身正常，但小智 AI 项目中麦克风不工作。原因是：
+
+数据格式不匹配：NoAudioCodec::Read() 中读取 I2S 数据时使用了错误的移位量（>>12），而 INMP441 的 32‑bit 有效数据位于高 16 位，应右移 16 位。
+
+此外，原始板级代码中引用了不存在的引脚宏（TOUCH_BUTTON_GPIO、ASR_BUTTON_GPIO、LAMP_GPIO）导致编译错误。
+
+📁 需要修改的文件（共 3 个）
+文件路径	修改原因
+main/boards/bread‑compact‑esp32/config.h	定义你的实际引脚（麦克风、功放、按键、OLED 等），并移除不存在的 AUDIO_PA_ENABLE_PIN（你的硬件未连接该引脚）。
+main/boards/bread‑compact‑esp32/esp32_bread_board.cc	删除无关按键（touch、asr）和台灯控制器，只保留 BOOT 按键，避免编译错误。
+main/codecs/no_audio_codec.cc	修正 Read() 函数中的数据移位：bit32_buffer[i] >> 16，同时增加调试日志便于观察麦克风音量。
+🔑 关键修改点（核心原因）
+main/codecs/no_audio_codec.cc 第约 115 行附近
+
+原来：
+
+cpp
+int32_t value = bit32_buffer[i] >> 12;
+修改为：
+
+cpp
+int32_t value = bit32_buffer[i] >> 16;
+因为 INMP441 输出的 32‑bit I2S 数据中，有效 16‑bit 音频位于高 16 位，低 16 位通常为 0。右移 16 位才能正确还原音频值。

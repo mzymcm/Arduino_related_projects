@@ -11,33 +11,69 @@ elseif(CONFIG_BOARD_TYPE_MY_ESP32_BOARD)
             bool "My ESP32 Board (双核 ESP32 + OLED 优化引脚)"
             depends on IDF_TARGET_ESP32
 3、config.h 中的引脚定义等参数
-// ==================== 音频采样率 ====================
+
+// *********************** 永远在线模式 ***********************
+#define ALWAYS_LISTENING_MODE   1
+
+// *********************** 音频采样率 ***********************
 #define AUDIO_INPUT_SAMPLE_RATE  16000
-#define AUDIO_OUTPUT_SAMPLE_RATE 16000
-// ==================== INMP441 I2S 麦克风引脚 ====================
-#define I2S_MIC_BCLK_PIN         GPIO_NUM_26   // SCK
-#define I2S_MIC_WS_PIN           GPIO_NUM_25   // WS / LRC
-#define I2S_MIC_DIN_PIN          GPIO_NUM_32   // SD
-// ==================== MAX98357A I2S 功放引脚 ====================
-#define I2S_SPK_BCLK_PIN         GPIO_NUM_14   // BCLK
-#define I2S_SPK_WS_PIN           GPIO_NUM_27   // LRC
-#define I2S_SPK_DIN_PIN          GPIO_NUM_33   // DIN
-#define AUDIO_PA_ENABLE_PIN      GPIO_NUM_12   // SD（高电平使能）
-// ==================== 按键（BOOT键，按下低电平）====================
-#define BUILTIN_BUTTON_GPIO      GPIO_NUM_0
-// ==================== 板载 LED（仅用于状态指示）====================
-#define LED_CONTROL_GPIO         GPIO_NUM_13
-// ==================== 自定义UART 与 Arduino Nano 通信 ====================
-#define UART1_TX_PIN             GPIO_NUM_19
-#define UART1_RX_PIN             GPIO_NUM_18
-#define UART1_BAUD_RATE          9600
-// ==================== SSD1306 OLED 显示屏（I2C）====================
-#define OLED_SDA_PIN             GPIO_NUM_21   // 新引脚
-#define OLED_SCL_PIN             GPIO_NUM_22   // 新引脚
-#define OLED_RST_PIN             GPIO_NUM_NC
-#define OLED_RESOLUTION_WIDTH    128
-#define OLED_RESOLUTION_HEIGHT   64
+#define AUDIO_OUTPUT_SAMPLE_RATE 24000
+
+// *********************** INMP441 I2S 麦克风 ***********************
+#define I2S_MIC_BCLK_PIN         GPIO_NUM_26	// SCK
+#define I2S_MIC_WS_PIN           GPIO_NUM_25	// WS / LRC
+#define I2S_MIC_DIN_PIN          GPIO_NUM_32	// SD
+// *********************** MAX98357A I2S 功放 ***********************
+#define I2S_SPK_BCLK_PIN         GPIO_NUM_14	// BCLK
+#define I2S_SPK_WS_PIN           GPIO_NUM_27	// LRC
+#define I2S_SPK_DIN_PIN          GPIO_NUM_33	// DIN
+#define AUDIO_PA_ENABLE_PIN      GPIO_NUM_12	// SD（高电平使能）
+// *********************** 按键（低电平有效）***********************
+#define BOOT_BUTTON_GPIO         GPIO_NUM_0	// 板载BOOT键
+// *********************** 外接 LED 指示灯 ***********************
+// 电路连接：LED 正极（阳极）串接 470Ω 电阻接 3.3V，负极（阴极）接此 GPIO
+// 代码中低电平点亮 LED（gpio_set_level(LED_PIN, 0) 亮，1 灭）
+#define BUILTIN_LED_GPIO         GPIO_NUM_2	 // 外接 LED 的负极引脚
+// *********************** 0.96 OLED (I2C) ***********************
+#define DISPLAY_SDA_PIN          GPIO_NUM_16
+#define DISPLAY_SCL_PIN          GPIO_NUM_17
+#define DISPLAY_WIDTH            128
+#define DISPLAY_HEIGHT           64	// 若您的 OLED 是 128x32，请改为 32
+#define DISPLAY_MIRROR_X         true	// 镜像显示（视 OLED 安装方向而定）
+#define DISPLAY_MIRROR_Y         true
 #define OLED_I2C_ADDR            0x3C
+// *********************** 自定义 UART1（与 Arduino Nano 通信）***********************
+// 注意：避免与上述引脚冲突，选择 GPIO21/22（未被占用）
+#define UART1_TX_PIN             GPIO_NUM_21
+#define UART1_RX_PIN             GPIO_NUM_22
+#define UART1_BAUD_RATE          9600
+
+
+
+
+面包板 ESP32 DevKit
+BOARD_TYPE_BREAD_COMPACT_ESP32
+https://my.feishu.cn/wiki/EuL7wqMOui2Mhgkw6ujcgre0ngg
+
+
+
+chip sync ...
+Chip is ESP32-D0WDQ6 (revision v1.0)
+Features: Wi-Fi, BT, Dual Core + LP Core, 240MHz, Vref calibration in eFuse, Coding Scheme None
+Crystal is 40MHz
+MAC: 8caab58da8c8
+Manufacturer: c8
+Device: 4017
+Status value: 0x200200
+Detected flash size: 8MB
+
+
+
+
+
+
+
+
 4、项目需求：
 一、我的项目AI是一个可以通过语音对话，对话中如果有“开灯”、“打开电视”、“拉开窗帘”等词汇，esp32要通过 自定义UART向 Arduino Nano发送指令文本，Arduino Nano 接收到指令文本后再进行下一步处理。
 二、由于人的语言的多样化，开灯的说法很多，我想建个语言命令和指令字符的对应数组，以上想加还可以随时补充，又能给Arduino Nano发送标准指令：
