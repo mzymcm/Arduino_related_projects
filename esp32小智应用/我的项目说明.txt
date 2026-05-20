@@ -2,13 +2,13 @@
 
 
 1、CMakeLists.txt 中加入我的项目板子
-elseif(CONFIG_BOARD_TYPE_MY_ESP32_BOARD)
-    set(BOARD_TYPE "my_esp32_board")
+elseif(CONFIG_BOARD_TYPE_MZY_ESP32_WIFI)
+    set(BOARD_TYPE "mzy_esp32_wifi")
     set(BUILTIN_TEXT_FONT font_puhui_basic_14_1)
     set(BUILTIN_ICON_FONT font_awesome_14_1)
 2、Kconfig.projbuild 中加入我的项目相关参数
-    config BOARD_TYPE_MY_ESP32_BOARD
-            bool "My ESP32 Board (双核 ESP32 + OLED 优化引脚)"
+    config BOARD_TYPE_MZY_ESP32_WIFI
+            bool "MZY ESP32 WIFI (双核 ESP32 WIFI)"
             depends on IDF_TARGET_ESP32
 3、config.h 中的引脚定义等参数
 
@@ -107,13 +107,50 @@ ESP_LOGI(TAG, ">> %s", text->valuestring);   在这段之前加上一段代码�
 
 四、由于我的项目的特殊需求，所以要求AI不能休眠，一是开机不需要按 boot 键就进入聆听状态，第二要随时要听对话，需要随时保持聆听状态，不能说goodbey，但这里要注意别整的死循环了，只显示聆听，但聆听不了，发生麦克不起作用的问题。
 
-if (strcmp(type->valuestring, "goodbye") == 0) {
-    Application::GetInstance().ToggleChatState();   // 仅此一行
+修改 application.cc 中的 HandleActivationDoneEvent
+找到该函数（约第 260 行附近），替换为以下内容：
+
+cpp
+void Application::HandleActivationDoneEvent() {
+    ESP_LOGI(TAG, "Activation done");
+
+    SystemInfo::PrintHeapStats();
+    SetDeviceState(kDeviceStateIdle);
+
+    has_server_time_ = ota_->HasServerTime();
+
+    auto display = Board::GetInstance().GetDisplay();
+    std::string message = std::string(Lang::Strings::VERSION) + ota_->GetCurrentVersion();
+    display->ShowNotification(message.c_str());
+    display->SetChatMessage("system", "");
+
+    // Release OTA object after activation is complete
+    ota_.reset();
+    auto& board = Board::GetInstance();
+    board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+
+    // 播放成功提示音（异步）
+    Schedule([this]() {
+        audio_service_.PlaySound(Lang::Sounds::OGG_SUCCESS);
+    });
+
+    // 自动模拟一次 BOOT 键单击，进入聆听状态
+    Schedule([this]() {
+        ESP_LOGI(TAG, "Auto trigger ToggleChatState to start listening (simulate boot key)");
+        ToggleChatState();
+    });
 }
+说明
+自动触发时机：在激活完成、OTA 对象释放、电源等级设置后，通过 Schedule 将 ToggleChatState() 放入主循环执行。
+这样不会阻塞当前任务，且确保 UI 已更新。
+
+与按键行为一致：ToggleChatState() 正是 BOOT 键单击时调用的函数。它会根据当前状态自动打开音频通道并切换到聆听模式。
+
+避免重复触发：只会执行一次，因为激活任务只运行一次。网络重连后不会再次触发（除非您也希望添加，但开机一次已满足需求）。
 
 小智的逻辑好像是进入聆听状态后同时打开麦克，如果只进入聆听状态不打开麦克,麦克不工作。
 
-请根据我的项目需求，生成目标代码 config.h 、my_esp32_board.cc 、.......
+请根据我的项目需求，生成目标代码 config.h 、mzy_esp32_wifi.cc 、.......
 
 
 
