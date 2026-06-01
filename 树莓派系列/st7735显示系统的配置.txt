@@ -1,0 +1,145 @@
+第一种，使用python 来测试st7735
+
+1. 确认接线
+屏幕引脚			树莓派 GPIO (BCM)		物理引脚
+VCC				3.3V					引脚1
+GND			GND					引脚6
+SCK/SCLK		GPIO11 (SCLK)			引脚23
+SDA/MOSI		GPIO10 (MOSI)			引脚19
+DC/A0			GPIO25					引脚22
+CS				GPIO8 (CE0)				引脚24
+RESET			GPIO27					引脚13
+LED				GPIO24					引脚18
+
+
+安装必要的软件包和库：
+sudo apt update
+sudo apt install python3-pip python3-pil
+sudo pip3 install luma.lcd RPi.GPIO
+编写 Python 脚本 st7735_info.py：
+将以下代码复制到一个新文件中。它演示了如何初始化屏幕、点亮背光并显示一些系统信息（如时间、CPU温度等）。你可以根据需要修改脚本。
+
+
+#!/usr/bin/env python3
+import time
+import subprocess
+from PIL import Image, ImageDraw, ImageFont
+from luma.core.interface.serial import spi
+from luma.lcd.device import st7735
+
+# 初始化屏幕，指定DC和RST引脚
+serial = spi(port=0, device=0, gpio_DC=25, gpio_RST=27)
+device = st7735(serial, rotate=0, width=128, height=128)
+
+# 初始化背光GPIO
+import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(24, GPIO.OUT)
+GPIO.output(24, GPIO.HIGH)
+
+def get_cpu_temp():
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+            temp = float(f.read()) / 1000
+            return f"{temp:.1f}°C"
+    except:
+        return "N/A"
+
+def get_ip():
+    try:
+        result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
+        return result.stdout.split()[0]
+    except:
+        return "No IP"
+
+font = ImageFont.load_default()
+while True:
+    with Image.new("RGB", device.size) as img:
+        draw = ImageDraw.Draw(img)
+        draw.rectangle(device.bounding_box, fill="black")
+        draw.text((5, 5), f"Time: {time.strftime('%H:%M:%S')}", fill="white", font=font)
+        draw.text((5, 25), f"CPU Temp: {get_cpu_temp()}", fill="white", font=font)
+        draw.text((5, 45), f"IP: {get_ip()}", fill="white", font=font)
+        draw.text((5, 65), "RPi 1B Online", fill="white", font=font)
+        device.display(img)
+    time.sleep(2)
+
+
+
+在终端中执行：
+python3 st7735_info.py
+
+
+
+
+
+
+
+
+第二种，使用  dtoverlay=adafruit-st7735r 的配置
+
+1. 确认接线
+屏幕引脚			树莓派 GPIO (BCM)		物理引脚
+VCC				3.3V					引脚1
+GND			GND					引脚6
+SCK/SCLK		GPIO11 (SCLK)			引脚23
+SDA/MOSI		GPIO10 (MOSI)			引脚19
+DC/A0			GPIO25					引脚22
+CS				GPIO8 (CE0)				引脚24
+RESET			GPIO27					引脚13
+LED				GPIO24					引脚18
+
+
+2. 修改 /boot/firmware/config.txt
+用 sudo nano /boot/firmware/config.txt 编辑，在文件末尾添加：
+
+# 启用 SPI 接口（如果尚未启用）
+dtparam=spi=on
+
+# 禁用默认的图形驱动（避免冲突，可选）
+# dtoverlay=vc4-fkms-v3d
+# dtoverlay=vc4-kms-v3d
+
+# 加载 ST7735 驱动，分辨率 128x128
+dtoverlay=adafruit-st7735r,128x128,reset_pin=27,dc_pin=25,speed=32000000
+
+# 开机后点亮背光（GPIO24 高电平）
+gpio=24=op,dh
+gpio=24=op,dh 是 config.txt 中设置 GPIO 初始状态的语法：op 表示输出模式，dh 表示初始高电平。这样开机就会自动点亮背光，无需额外脚本。
+
+如果屏幕仍然不亮，可以尝试降低 speed 到 16000000（16MHz），树莓派 1B 的 SPI 稳定性可能有限。
+
+
+3. 将系统控制台映射到屏幕
+编辑内核命令行文件：sudo nano /boot/firmware/cmdline.txt。
+这是一长串文本，用键盘方向键移动到这一行参数的末尾，先输入一个空格，然后粘贴下面这行配置：
+
+fbcon=map:0 fbcon=font:VGA8x8
+fbcon=map:0：这个参数是关键。它的作用是告诉内核，系统唯一的帧缓冲设备（/dev/fb0）就是你的屏幕。这能有效避免因映射到不存在的设备 fb1 而导致黑屏。
+
+fbcon=font:VGA8x8：设置终端字体为 8x8 点阵，确保内容能在 128x128 的小屏幕上完整显示。
+
+
+
+
+
+3. 重启树莓派
+
+sudo reboot
+4. 验证
+重启后，你应该看到：
+
+屏幕背光亮起（如果没亮，检查 GPIO24 接线或尝试手动 raspi-gpio set 24 op dh）。
+
+系统会产生一个新的 framebuffer 设备：/dev/fb1（/dev/fb0 通常是 HDMI 或复合视频输出）。
+
+你可以通过以下命令把终端输出映射到小屏幕上：
+
+# 将 tty1 显示到 /dev/fb1
+sudo con2fbmap 1 1
+
+# 切换到 tty1 查看（按 Ctrl+Alt+F1）
+或者直接测试显示随机内容：
+
+cat /dev/urandom > /dev/fb1
+如果屏幕出现彩色噪点，说明驱动工作正常。
