@@ -1,0 +1,37 @@
+彻底清除 xrdp 的配置和残留文件，可以按下面几步操作。这会让 xrdp 的服务、配置和一些残留的用户设置都清除干净，回到还没装过的状态。
+
+注意：在开始之前，最好先关闭所有远程桌面连接。
+
+🛑 第一步：停止并禁用服务
+先终止 xrdp 的所有相关服务，避免在后续操作中产生冲突：
+
+bash
+sudo systemctl stop xrdp xrdp-sesman
+sudo systemctl disable xrdp xrdp-sesman
+🗑️ 第二步：卸载软件包及配置文件
+为了无残留，我们需要使用 purge（清除）命令。它会删除软件包 和 系统级的配置文件。--auto-remove 参数会顺带清理掉不再被需要的依赖包：
+
+bash
+sudo apt purge --auto-remove xrdp xorgxrdp
+补充说明：此命令也会将 xorgxrdp 一并清除，它是 xrdp 必要的组件，有时会单独打包。
+
+🧹 第三步：手动删除系统级残留
+purge 命令可能无法清除所有文件夹，我们手动删除它们，确保系统环境干净。这包括主配置目录、日志和运行时目录：
+
+bash
+sudo rm -rf /etc/xrdp /var/log/xrdp* /var/run/xrdp* /tmp/.X11-unix
+👤 第四步：清理用户级配置
+为了避免旧配置影响之后的重新安装，需要清理用户目录（包括 /home 和 /root）下的相关文件。
+
+bash
+# 清理主目录下可能存在的 xsession 和 Xauthority 文件
+sudo rm -f /home/*/.xsession /home/*/.Xauthority
+sudo rm -f /root/.xsession /root/.Xauthority
+🔄 第五步：完成清理与验证
+最后，运行 autoremove 清理所有孤儿依赖包，并用 clean 清空本地软件包缓存，释放磁盘空间：
+
+bash
+sudo apt autoremove --purge
+sudo apt clean
+dpkg -l | grep xrdp
+如果没有输出，就说明卸载干净了。

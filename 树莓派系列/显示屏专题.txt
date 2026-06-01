@@ -1,0 +1,36 @@
+MHS-3.5inch Display 480x320
+
+接口定义
+引脚号			标识			描述
+1, 17			3.3V			电源正(3.3V电源输入)
+2, 4			5V			电源正(5V电源输入)
+3, 5, 7, 8, 10, 12, 13, 15, 16	NC			NC悬空
+6, 9, 14, 20, 25		GND			电源地
+11			TP_IRQ			触摸面板中断，检测到触摸面板有按下则为低电平
+18			LCD_RS			指令/数据 寄存器选择，低电平为指令，高电平为数据
+19			LCD_SI / TP_SI		LCD显示/ 触摸面板的SPI数据输入
+21			TP_SO			触摸面板的SPI数据输出
+22			RST			复位信号，低电平复位
+23			LCD_SCK / TP_SCK		LCD显示/ 触摸面板的SPI时钟信号
+24			LCD_CS			LCD片选信号，低电平使能
+26			TP_CS			触摸面板片选信号，低电平使能
+
+
+
+
+
+
+
+
+
+
+
+
+sudo dpkg --configure -a
+sudo rm /var/lib/dpkg/lock-frontend
+
+sudo rm -rf LCD-show
+git clone https://github.com/goodtft/LCD-show.git
+chmod -R 755 LCD-show
+cd LCD-show/
+sudo ./MHS35-show
