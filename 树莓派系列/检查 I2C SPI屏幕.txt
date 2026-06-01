@@ -1,0 +1,355 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+================================================
+  树莓派 / DietPi 硬件工具箱  sudo python3 raspi_hardware_tool.py
+  功能：检查 I2C/SPI/屏幕 | 一键启用 I2C/SPI
+  兼容：/boot/firmware (DietPi) 和 /boot/config.txt
+================================================
+"""
+
+import subprocess
+import os
+import sys
+import re
+from pathlib import Path
+import argparse
+
+# ---------- 颜色输出 ----------
+COLOR = {
+    'red': '\033[91m',
+    'green': '\033[92m',
+    'yellow': '\033[93m',
+    'blue': '\033[94m',
+    'reset': '\033[0m'
+}
+
+def pcolor(msg, color='reset'):
+    print(f"{COLOR.get(color, COLOR['reset'])}{msg}{COLOR['reset']}")
+
+def info(msg):   pcolor(f"[信息] {msg}", 'blue')
+def ok(msg):     pcolor(f"[✓] {msg}", 'green')
+def warn(msg):   pcolor(f"[!] {msg}", 'yellow')
+def error(msg):  pcolor(f"[✗] {msg}", 'red')
+
+# ---------- 系统检测 ----------
+def find_config_txt():
+    """自动查找 config.txt 文件路径"""
+    candidates = ['/boot/firmware/config.txt', '/boot/config.txt']
+    for path in candidates:
+        if Path(path).exists():
+            return path
+    return None
+
+def is_raspberry_pi():
+    """检测是否为树莓派"""
+    try:
+        with open('/proc/device-tree/model', 'r') as f:
+            model = f.read()
+            return 'Raspberry Pi' in model
+    except:
+        return False
+
+def check_root():
+    if os.geteuid() != 0:
+        error("请使用 sudo 运行此脚本")
+        sys.exit(1)
+
+def run_cmd(cmd, capture=True, timeout=10):
+    """执行 shell 命令，返回 stdout 或 None"""
+    try:
+        if capture:
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+            return res.stdout.strip() if res.returncode == 0 else None
+        else:
+            subprocess.run(cmd, shell=True, timeout=timeout)
+            return True
+    except Exception:
+        return None
+
+# ---------- 硬件检查功能 ----------
+def check_i2c():
+    """扫描 I2C 总线上的设备"""
+    info("\n=== I2C 设备检查 ===")
+    if not run_cmd("which i2cdetect"):
+        warn("i2cdetect 未安装，请运行: sudo apt install i2c-tools")
+        return
+
+    # 获取 I2C 总线编号
+    buses = run_cmd("ls /dev/i2c-* 2>/dev/null | grep -o '[0-9]*$'")
+    if not buses:
+        warn("未发现任何 I2C 总线，请检查是否已启用")
+        return
+
+    for bus in buses.split():
+        info(f"扫描总线 i2c-{bus}")
+        output = run_cmd(f"i2cdetect -y {bus}")
+        if output:
+            devices = []
+            for line in output.split('\n')[1:]:
+                parts = re.split(r'\s+', line.strip())
+                if len(parts) < 2:
+                    continue
+                for addr in parts[1:]:
+                    if addr != '--' and re.match(r'[0-9a-f]{2}', addr):
+                        devices.append(addr)
+            if devices:
+                ok(f"  发现设备: {', '.join(devices)} (地址: 0x{', 0x'.join(devices)})")
+            else:
+                warn(f"  无设备")
+        else:
+            error(f"  扫描失败")
+
+def check_spi():
+    """检查 SPI 状态"""
+    info("\n=== SPI 设备检查 ===")
+    # 检查设备节点
+    spidevs = list(Path("/dev").glob("spidev*"))
+    if spidevs:
+        ok(f"SPI 设备节点: {', '.join([str(p.name) for p in spidevs])}")
+    else:
+        warn("未发现 /dev/spidev* 设备，SPI 可能未启用")
+
+    # 检查内核模块
+    modules = run_cmd("lsmod | grep spi")
+    if modules:
+        info("已加载的 SPI 模块:")
+        for line in modules.split('\n'):
+            print(f"  {line}")
+    else:
+        warn("未发现 SPI 相关内核模块")
+
+    # 检查配置文件
+    config = find_config_txt()
+    if config:
+        with open(config, 'r') as f:
+            content = f.read()
+        if re.search(r'^dtparam=spi=on', content, re.M):
+            ok(f"SPI 已在 {config} 中启用")
+        else:
+            warn(f"SPI 未在 {config} 中启用或配置被注释")
+    else:
+        warn("未找到 config.txt 文件")
+
+def check_display():
+    """检查屏幕连接情况"""
+    info("\n=== 显示设备检查 ===")
+
+    # 1. 官方 vcgencmd / tvservice
+    lcd = run_cmd("vcgencmd get_lcd_info")
+    if lcd and "lcd=0" not in lcd:
+        ok(f"官方 LCD 状态: {lcd}")
+    else:
+        warn("未检测到官方 DSI 屏幕")
+
+    hdmi = run_cmd("tvservice -s")
+    if hdmi and "no display" not in hdmi.lower():
+        ok(f"HDMI 状态: {hdmi}")
+    else:
+        warn("未检测到 HDMI 显示")
+
+    # 2. DRM 连接器
+    drm_conns = []
+    for path in Path("/sys/class/drm").glob("card*-*"):
+        status_file = path / "status"
+        if status_file.exists():
+            status = status_file.read_text().strip()
+            if status == "connected":
+                drm_conns.append(path.name)
+    if drm_conns:
+        ok(f"DRM 已连接显示器: {', '.join(drm_conns)}")
+    else:
+        warn("DRM 无已连接显示器")
+
+    # 3. 帧缓冲设备
+    fbs = list(Path("/dev").glob("fb*"))
+    if fbs:
+        ok(f"帧缓冲设备: {', '.join([str(p.name) for p in fbs])}")
+    else:
+        warn("未发现帧缓冲设备")
+
+    # 4. X11 (如果运行在桌面)
+    if os.environ.get('DISPLAY') and run_cmd("which xrandr"):
+        xrandr_out = run_cmd("xrandr --query")
+        if xrandr_out:
+            info("xrandr 显示器状态:")
+            for line in xrandr_out.split('\n'):
+                if ' connected' in line or ' disconnected' in line:
+                    print(f"  {line.strip()}")
+
+# ---------- 启用功能 ----------
+def enable_i2c():
+    """在 config.txt 中启用 I2C"""
+    config = find_config_txt()
+    if not config:
+        error("找不到 config.txt 文件")
+        return False
+
+    info(f"正在修改 {config} 启用 I2C...")
+    # 备份
+    backup = config + ".bak"
+    if not Path(backup).exists():
+        shutil.copy2(config, backup)
+        ok(f"已备份原配置到 {backup}")
+
+    # 读取内容
+    with open(config, 'r') as f:
+        lines = f.readlines()
+
+    # 标记是否已有配置
+    has_i2c = False
+    new_lines = []
+    for line in lines:
+        if re.match(r'^dtparam=i2c(_arm)?=on', line):
+            # 已经启用，不做修改
+            has_i2c = True
+            new_lines.append(line)
+        elif re.match(r'^#dtparam=i2c(_arm)?=on', line):
+            # 被注释，取消注释
+            new_lines.append(re.sub(r'^#', '', line))
+            has_i2c = True
+        else:
+            new_lines.append(line)
+
+    if not has_i2c:
+        new_lines.append("dtparam=i2c_arm=on\n")
+
+    with open(config, 'w') as f:
+        f.writelines(new_lines)
+
+    ok("I2C 已启用，需要重启后生效")
+    return True
+
+def enable_spi():
+    """在 config.txt 中启用 SPI"""
+    config = find_config_txt()
+    if not config:
+        error("找不到 config.txt 文件")
+        return False
+
+    info(f"正在修改 {config} 启用 SPI...")
+    backup = config + ".bak"
+    if not Path(backup).exists():
+        shutil.copy2(config, backup)
+        ok(f"已备份原配置到 {backup}")
+
+    with open(config, 'r') as f:
+        lines = f.readlines()
+
+    has_spi = False
+    new_lines = []
+    for line in lines:
+        if re.match(r'^dtparam=spi=on', line):
+            has_spi = True
+            new_lines.append(line)
+        elif re.match(r'^#dtparam=spi=on', line):
+            new_lines.append(re.sub(r'^#', '', line))
+            has_spi = True
+        else:
+            new_lines.append(line)
+
+    if not has_spi:
+        new_lines.append("dtparam=spi=on\n")
+
+    with open(config, 'w') as f:
+        f.writelines(new_lines)
+
+    ok("SPI 已启用，需要重启后生效")
+    return True
+
+# ---------- 交互菜单 ----------
+def interactive_menu():
+    """显示交互式菜单"""
+    while True:
+        print("\n" + "="*40)
+        print("   树莓派硬件工具箱 - 主菜单")
+        print("="*40)
+        print("1. 检查 I2C 设备")
+        print("2. 检查 SPI 状态")
+        print("3. 检查屏幕连接")
+        print("4. 全部检查")
+        print("5. 启用 I2C (修改 config.txt)")
+        print("6. 启用 SPI (修改 config.txt)")
+        print("7. 重启系统")
+        print("0. 退出")
+        print("="*40)
+
+        choice = input("请选择 [0-7]: ").strip()
+        if choice == '1':
+            check_i2c()
+        elif choice == '2':
+            check_spi()
+        elif choice == '3':
+            check_display()
+        elif choice == '4':
+            check_i2c()
+            check_spi()
+            check_display()
+        elif choice == '5':
+            enable_i2c()
+        elif choice == '6':
+            enable_spi()
+        elif choice == '7':
+            info("系统将在 5 秒后重启...")
+            run_cmd("shutdown -r +0.1", capture=False)
+            sys.exit(0)
+        elif choice == '0':
+            info("退出程序")
+            sys.exit(0)
+        else:
+            warn("无效选择，请重试")
+
+# ---------- 命令行参数 ----------
+def parse_args():
+    parser = argparse.ArgumentParser(description="树莓派硬件工具箱")
+    parser.add_argument('--check-i2c', action='store_true', help='检查 I2C 设备')
+    parser.add_argument('--check-spi', action='store_true', help='检查 SPI 状态')
+    parser.add_argument('--check-screen', action='store_true', help='检查屏幕连接')
+    parser.add_argument('--check-all', action='store_true', help='执行全部检查')
+    parser.add_argument('--enable-i2c', action='store_true', help='启用 I2C (修改 config.txt)')
+    parser.add_argument('--enable-spi', action='store_true', help='启用 SPI (修改 config.txt)')
+    parser.add_argument('--interactive', action='store_true', help='进入交互菜单')
+    return parser.parse_args()
+
+# ---------- 主函数 ----------
+def main():
+    if not is_raspberry_pi():
+        warn("当前设备可能不是树莓派，部分功能可能无法使用")
+
+    args = parse_args()
+    if len(sys.argv) == 1:
+        # 无参数时进入交互菜单
+        args.interactive = True
+
+    if args.interactive:
+        check_root()
+        interactive_menu()
+        return
+
+    # 命令行模式
+    if args.enable_i2c or args.enable_spi:
+        check_root()  # 修改配置需要 root
+
+    if args.check_i2c:
+        check_i2c()
+    if args.check_spi:
+        check_spi()
+    if args.check_screen:
+        check_display()
+    if args.check_all:
+        check_i2c()
+        check_spi()
+        check_display()
+    if args.enable_i2c:
+        enable_i2c()
+    if args.enable_spi:
+        enable_spi()
+
+    if not any(vars(args).values()):
+        print("请使用 --help 查看帮助")
+
+if __name__ == "__main__":
+    # 导入 shutil（用于备份）
+    import shutil
+    main()

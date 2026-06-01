@@ -1,0 +1,139 @@
+1. 安装依赖
+sudo apt-get install python3-pip python3-pil
+sudo pip3 install luma.oled psutil --break-system-packages
+2. 连接硬件
+将 SSD1306 OLED 屏幕的 VCC 接树莓派 3.3V 或 5V（具体视模块而定，常用 3.3V）
+GND 接 GND
+SDA 接 GPIO2（I2C 数据）
+SCL 接 GPIO3（I2C 时钟）
+3. 启用 I2C 接口
+sudo raspi-config
+# 选择 Interfacing Options -> I2C -> Enable
+sudo reboot
+4. 检测设备地址
+sudo i2cdetect -y 1
+# 输出中若显示 0x3C 或 0x3D，则修改脚本中的 I2C_ADDRESS 值
+5. 运行脚本
+python3 oled_system_info.py
+
+
+
+sudo nano oled_system_info.py
+
+#!/usr/bin/env python3
+import time
+import os
+import subprocess
+import psutil
+from PIL import Image, ImageDraw, ImageFont
+from luma.core.interface.serial import i2c
+from luma.core.render import canvas
+from luma.oled.device import ssd1306
+
+# ================== 配置 ==================
+I2C_PORT = 1
+I2C_ADDRESS = 0x3C
+UPDATE_INTERVAL = 2
+
+def get_ip_address():
+    """返回第一个有效的 IPv4 地址（非回环、非链路本地）"""
+    # 方法1：通过 psutil 获取
+    try:
+        candidates = []
+        for iface, addrs in psutil.net_if_addrs().items():
+            # 跳过虚拟接口（Docker、虚拟机等）
+            if any(skip in iface for skip in ['docker', 'br-', 'veth', 'lo']):
+                continue
+            for addr in addrs:
+                if addr.family == psutil.AF_INET:
+                    ip = addr.address
+                    # 排除回环和链路本地地址 (169.254.x.x)
+                    if ip.startswith('127.'):
+                        continue
+                    if ip.startswith('169.254.'):
+                        continue
+                    candidates.append(ip)
+        if candidates:
+            # 优先选择第一个，实际也可以进一步排序（例如优先 eth/wlan）
+            return candidates[0]
+    except Exception:
+        pass
+
+    # 方法2：使用 hostname -I 命令（通常返回空格分隔的 IP）
+    try:
+        output = subprocess.check_output(['hostname', '-I'], text=True)
+        ips = output.strip().split()
+        for ip in ips:
+            if ip and not ip.startswith('127.') and not ip.startswith('169.254.'):
+                return ip
+    except Exception:
+        pass
+
+    return 'No IP'
+
+def get_cpu_temperature():
+    try:
+        with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
+            return float(f.read().strip()) / 1000.0
+    except:
+        return 0.0
+
+def get_system_info():
+    info = {}
+    info['cpu_temp'] = get_cpu_temperature()
+    info['load_avg'] = os.getloadavg()[0] if hasattr(os, 'getloadavg') else 0.0
+    mem = psutil.virtual_memory()
+    info['mem_percent'] = mem.percent
+    disk = psutil.disk_usage('/')
+    info['disk_percent'] = disk.percent
+    return info
+
+def main():
+    serial = i2c(port=I2C_PORT, address=I2C_ADDRESS)
+    device = ssd1306(serial, width=128, height=64)
+    font = ImageFont.load_default()
+
+    # 可选：在屏幕上显示3秒调试信息（所有网卡信息）
+    # debug_lines = []
+    # for iface, addrs in psutil.net_if_addrs().items():
+    #     for addr in addrs:
+    #         if addr.family == psutil.AF_INET:
+    #             debug_lines.append(f"{iface}: {addr.address}")
+    # with canvas(device) as draw:
+    #     for i, line in enumerate(debug_lines[:6]):
+    #         draw.text((0, i*10), line[:16], fill="white", font=font)
+    # time.sleep(3)
+
+    try:
+        while True:
+            ip = get_ip_address()
+            sys_info = get_system_info()
+            hostname = os.uname().nodename
+
+            lines = [
+                f"{hostname[:15]}",
+                f"IP: {ip}",
+                f"CPU: {sys_info['cpu_temp']:.1f}C  Ld:{sys_info['load_avg']:.2f}",
+                f"Mem: {sys_info['mem_percent']:.0f}%",
+                f"Disk: {sys_info['disk_percent']:.0f}%",
+            ]
+
+            with canvas(device) as draw:
+                y = 0
+                for line in lines:
+                    draw.text((0, y), line, fill="white", font=font)
+                    y += 10
+
+            time.sleep(UPDATE_INTERVAL)
+
+    except KeyboardInterrupt:
+        print("程序退出")
+        device.clear()
+    except Exception as e:
+        print(f"错误: {e}")
+        with canvas(device) as draw:
+            draw.text((0, 0), "Error!", fill="white")
+            draw.text((0, 10), str(e)[:15], fill="white")
+
+if __name__ == "__main__":
+    main()

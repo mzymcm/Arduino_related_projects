@@ -1,0 +1,96 @@
+以下是一个适用于 Linux 系统的安全清理脚本，它会清理包管理器缓存、旧日志、临时文件以及用户的缓存目录。建议以 root 身份运行，以便完整清理系统级垃圾。
+
+
+
+
+
+#!/bin/bash
+# Linux 系统清理脚本 - 安全释放磁盘空间
+
+set -e  # 遇到错误退出
+
+echo "=========================================="
+echo "      Linux 系统清理脚本"
+echo "=========================================="
+
+# 检查是否为 root
+if [[ $EUID -ne 0 ]]; then
+   echo "请使用 sudo 或以 root 身份运行此脚本" 
+   exit 1
+fi
+
+# 1. 清理包管理器缓存
+echo "[1/5] 清理包管理器缓存..."
+
+if command -v apt &> /dev/null; then
+    apt clean
+    apt autoremove -y
+    echo "apt 缓存已清理"
+elif command -v yum &> /dev/null; then
+    yum clean all
+    echo "yum 缓存已清理"
+elif command -v dnf &> /dev/null; then
+    dnf clean all
+    echo "dnf 缓存已清理"
+elif command -v pacman &> /dev/null; then
+    pacman -Sc --noconfirm
+    echo "pacman 缓存已清理"
+else
+    echo "未检测到支持的包管理器，跳过"
+fi
+
+# 2. 清理系统日志（保留最近3天的日志）
+echo "[2/5] 清理旧的 systemd 日志..."
+journalctl --vacuum-time=3d
+
+# 清理 /var/log/ 下的旧日志文件（仅清理 *.log.?.gz 和 *.log.old）
+find /var/log -type f -name "*.log.*.gz" -delete 2>/dev/null
+find /var/log -type f -name "*.log.old" -delete 2>/dev/null
+
+# 可选：截断仍在写入的大日志文件（只保留最后100行）
+# for logfile in /var/log/syslog /var/log/messages; do
+#     if [[ -f "$logfile" ]]; then
+#         tail -n 100 "$logfile" > "$logfile.tmp"
+#         cat "$logfile.tmp" > "$logfile"
+#         rm "$logfile.tmp"
+#     fi
+# done
+
+# 3. 清理临时目录
+echo "[3/5] 清理临时文件..."
+rm -rf /tmp/*
+rm -rf /var/tmp/*
+
+# 4. 清理用户缓存（每个用户目录下的 .cache）
+echo "[4/5] 清理用户缓存..."
+for user_home in /home/*; do
+    if [[ -d "$user_home/.cache" ]]; then
+        rm -rf "$user_home/.cache/*" 2>/dev/null
+        echo "已清理 $user_home/.cache"
+    fi
+done
+# 清理 root 的缓存
+if [[ -d "/root/.cache" ]]; then
+    rm -rf /root/.cache/*
+fi
+
+# 5. 清理缩略图缓存
+echo "[5/5] 清理缩略图缓存..."
+rm -rf ~/.thumbnails/* ~/.cache/thumbnails/* 2>/dev/null
+
+echo "=========================================="
+echo "清理完成！"
+echo "你可以运行 'df -h' 查看磁盘空间释放情况"
+echo "=========================================="
+
+
+
+
+
+
+使用方法
+将上述内容保存为 system_clean.sh
+
+赋予执行权限：chmod +x system_clean.sh
+
+使用 root 权限运行：sudo ./system_clean.sh
