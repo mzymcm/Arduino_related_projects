@@ -1,0 +1,6 @@
+sudo nano /etc/resolv.conf
+然后添加或修改以下行来设置DNS服务器。例如，使用阿里云的DNS服务器：
+nameserver 223.5.5.5
+nameserver 223.6.6.6
+
+
