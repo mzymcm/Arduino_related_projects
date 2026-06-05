@@ -349,3 +349,56 @@ python3 hello_world.py
 
 运行脚本后，ST7735 屏幕应该会显示 "Hello World" 这几个字。如果一切正常，这意味着你成功地在树莓派 3B 上驱动了 ST7735 显示屏并显示了文本。
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+======================  如果没有网的情况下，安装这个网卡
+https://archive.debian.org/debian/pool/main/d/dkms/dkms_2.8.4-3_all.deb   下载这个，安装
+sudo dpkg -i ./dkms_2.8.4-3_all.deb
+https://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-firmware/raspberrypi-kernel-headers_1.20230405-1_armhf.deb
+sudo dpkg -i --force-overwrite ./raspberrypi-kernel-headers_1.20230405-1_armhf.deb
+
+http://ftp.ca.debian.org/debian/pool/main/b/bc/bc_1.07.1-3_armhf.deb
+https://ftp.debian.org/debian/pool/main/f/flex/libfl2_2.6.4-8.2_armhf.deb
+http://http.us.debian.org/debian/pool/main/b/bison/bison_3.8.2+dfsg-1+b3_armhf.deb
+
+
+
+https://github.com/kelebek333/rtl8188fu/archive/refs/heads/master.zip
+下载后解压缩
+
+
+sudo apt-get install build-essential git dkms linux-headers-$(uname -r)
+
+git clone https://github.com/kelebek333/rtl8188fu
+
+sudo dkms install ./rtl8188fu
+
+sudo cp ./rtl8188fu/firmware/rtl8188fufw.bin /lib/firmware/rtlwifi/
+
+
+
+
+
+
+sudo apt install linux-headers-rpi-{v6，v7，v7l}
+
+sudo apt install linux-headers-rpi-v6
