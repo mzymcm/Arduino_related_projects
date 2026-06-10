@@ -60,6 +60,11 @@ rootdev=UUID=06c136ad-1a3f-4f37-bbe5-1c5a998d6460
 rootfstype=ext4
 usbstoragequirks=0x2537:0x1066:u,0x2537:0x1068:u
 
+ 命令设置 wifi 的方法
+sudo nmcli dev wifi connect "CMCC-gyHQ" --ask
+启动自动联网
+sudo nmcli connection modify "CMCC-gyHQ" connection.autoconnect yes
+
 
 ############# 蓝牙控制信息
 root@orangepiprime:~# hciconfig -a
@@ -126,3 +131,347 @@ i2cdetect -y 1
 u-boot 启动阶段		灭	亮
 内核启动到进入系统	亮	灭
 GPIO 口			PL10	 PA20
+
+
+https://armbian.cn/
+安装 armbian.cn 后没有桌面，安装桌面和远程控制
+sudo apt update
+sudo apt install xorg xinit x11-xserver-utils xterm xfce4 xfce4-session xrdp xorgxrdp
+
+ 安装缺失的 xorgxrdp 驱动
+xrdp 需要专门的 Xorg 驱动来正确处理认证和 VT 问题。
+
+【####】这是是必须安装的，看有没有安装，安装完后要重新启动！！！
+sudo apt install xorgxrdp
+2️⃣ 修改 xrdp 配置，添加必要参数并强制使用正确的认证方式
+编辑 /etc/xrdp/xrdp.ini：
+
+bash
+sudo nano /etc/xrdp/xrdp.ini
+找到 [Xorg] 节（通常在文件末尾），将其修改为如下内容（添加 -novtswitch -sharevts 并移除可能导致认证问题的参数）：
+
+ini
+[Xorg]
+name=Xorg
+lib=libxup.so
+username=ask
+password=ask
+ip=127.0.0.1
+port=-1
+code=20
+param=-config
+param=xrdp/xorg.conf
+param=-novtswitch
+param=-sharevts
+保存并退出。
+
+3️⃣ 清理所有残留的显示锁文件
+bash
+sudo systemctl stop xrdp
+sudo rm -f /tmp/.X*-lock
+sudo rm -rf /tmp/.X11-unix/X*
+sudo systemctl start xrdp
+4️⃣ 重启 xrdp 服务
+bash
+sudo systemctl restart xrdp
+5️⃣ 用普通用户 mzy 重新连接 RDP
+现在应该能正常登录并看到 XFCE 桌面。
+
+
+✅ 最终解决方案：切换到 X11rdp 后端
+步骤 1：安装 X11rdp
+bash
+sudo apt install x11rdp
+步骤 2：修改 /etc/xrdp/xrdp.ini
+编辑文件：
+
+bash
+sudo nano /etc/xrdp/xrdp.ini
+找到 [Xorg] 节，将其注释掉或删除，然后添加一个新的 [X11rdp] 节。建议直接替换为如下内容：
+
+ini
+[X11rdp]
+name=X11rdp
+lib=libxup.so
+username=ask
+password=ask
+ip=127.0.0.1
+port=-1
+code=20
+param=-config
+param=xrdp/x11rdp.conf
+param=-novtswitch
+param=-sharevts
+注意：libxup.so 是通用模块，保持即可。也可以使用 libxrdp.so，但 libxup.so 更常见。
+
+步骤 3：清理并重启
+bash
+sudo systemctl stop xrdp
+sudo rm -f /tmp/.X*-lock
+sudo rm -rf /tmp/.X11-unix/X*
+sudo systemctl start xrdp
+步骤 4：使用普通用户连接
+再次用 mzy 连接 RDP，应该能成功进入桌面。
+
+
+
+
+
+
+
+
+如果想清除这些
+
+停止并禁用相关服务
+为了确保卸载过程顺利，可以先停止并禁用这些服务。
+
+bash
+sudo systemctl stop xrdp
+sudo systemctl disable xrdp
+
+执行 purge 卸载
+执行以下命令，一次性彻底删除你列出的所有软件包及它们的系统级配置。
+
+bash
+sudo apt purge xorg xinit x11-xserver-utils xterm xfce4 xfce4-session xrdp xorgxrdp
+
+清理孤立的依赖包
+purge 卸载主程序后，一些只为它们服务的依赖包可能还在。用 autoremove 可以自动识别并删除这些不再需要的包。
+
+bash
+sudo apt autoremove --purge
+
+清理包管理器缓存
+最后，可以清理 apt 下载的 .deb 安装包缓存，释放一些磁盘空间。
+
+bash
+sudo apt autoclean && sudo apt clean
+
+第二步：手动清理残留文件
+完成软件包删除后，可能会遗漏一些文件，比如你的个人配置、特定的日志等，这些需要手动处理。
+
+⚠️ 操作前请务必小心
+接下来的操作会直接删除文件，且无法撤销。请仔细检查路径，强烈建议提前备份重要数据。
+
+清理 Xorg 与 X11 的全局配置
+这些是 X 窗口系统的全局配置文件，通常在 /etc/X11/ 目录下。
+
+bash
+sudo rm -rf /etc/X11/xorg.conf /etc/X11/xorg.conf.d/ /etc/X11/Xwrapper.config /usr/lib/xorg/
+
+清理 xrdp 的全局配置
+删除 xrdp 的配置目录和日志文件。
+
+bash
+sudo rm -rf /etc/xrdp /var/log/xrdp*.log
+
+清理 Xfce 的用户配置文件
+这部分是你作为用户在使用 Xfce 时生成的个人设置，位于你的用户主目录下。
+
+bash
+rm -rf ~/.config/xfce4 ~/.cache/xfce4 ~/.local/share/xfce4*
+
+清理其他 X 相关的用户配置
+删除 X 会话和 xinit 的启动脚本。
+
+bash
+rm -rf ~/.xinitrc ~/.xsession ~/.xsession-errors ~/.Xauthority
+
+清理 xrdp 的临时文件
+重启系统后，可以删除 /tmp/ 下的残留文件。
+
+bash
+sudo rm -rf /tmp/.X11-unix /tmp/.xrdp*
+
+执行完以上所有步骤，你列出的这些软件包和它们的相关配置就会从系统中清除干净了
+
+
+
+
+
+
+
+
+
+
+
+二、设置为中文显示
+
+要把 XFCE4 桌面环境设置成中文，整个流程可以分成下面几步：
+
+🛠️ 第一步：准备工作（更新软件源）
+开始之前，先通过 SSH 连接到你的 Orange Pi Prime，然后刷新一下软件包列表：
+
+bash
+sudo apt update
+🗣️ 第二步：安装中文语言包
+这一步是让系统能显示和处理中文的基础。在终端里输入下面的命令来安装简体中文语言包：
+
+bash
+sudo apt install language-pack-zh-hans
+说明：language-pack-zh-hans 是 Ubuntu 系统标准的中文语言支持包。安装好之后，你的系统就具备处理中文的能力了。
+
+⚙️ 第三步：配置系统语言（Locale）
+现在，我们把系统的默认语言设置成中文。
+
+运行配置工具：
+
+bash
+sudo dpkg-reconfigure locales
+用键盘的 上/下方向键 找到并选中 zh_CN.UTF-8 UTF-8，然后按 空格键 把它标记为选中状态（前面会出现一个 * 号）。
+
+按 Tab 键将高亮条移动到 <Ok>，然后按 回车键 继续。
+
+在接下来弹出的界面里，选择 zh_CN.UTF-8 作为系统的默认语言环境，按 回车键 确认。
+
+最后，为了让语言环境变量立即生效，运行下面的命令：
+
+bash
+sudo update-locale LANG=zh_CN.UTF-8
+这条命令会修改 /etc/default/locale 这个配置文件，让系统在下次启动时自动使用中文环境。
+
+🔤 第四步：安装中文字体
+为了让中文菜单和文字显示得清晰美观，需要安装一些专门的中文字体包。
+
+bash
+sudo apt install fonts-wqy-zenhei fonts-noto-cjk
+说明：
+
+fonts-wqy-zenhei：文泉驿正黑，是一款非常经典、开源的简体中文字体。
+
+fonts-noto-cjk：Google 出品的 Noto 字体，覆盖了中日韩等多种文字，显示效果很棒。
+
+🖥️ 第五步：重启并远程登录
+完成上面的步骤后，重启系统让所有配置生效：
+
+bash
+sudo reboot
+等系统重启后，再用你的远程桌面客户端（比如 Windows 自带的“远程桌面连接”）去连接你的 Orange Pi Prime。
+
+✨ 第六步：登录后调整桌面显示（可选）
+重启并登录到 XFCE4 桌面后，如果有些地方还是英文或者显示有问题，可以再检查一下：
+
+在桌面空白处右键，选择 “Applications” > “Settings” > “Appearance”（外观）。
+
+在打开的窗口里，切换到 “Fonts”（字体）选项卡。
+
+确认默认字体被设置成了你刚刚安装的中文字体，比如 “文泉驿正黑” 或 “Noto Sans CJK SC”。这样就大功告成了！
+
+
+
+
+
+
+
+
+
+第一步：安装中文语言包
+首先需要安装完整的中文语言包。
+
+bash
+sudo apt update
+sudo apt install language-pack-zh-hans
+这个语言包包含了系统界面、菜单等翻译所需的所有文件。
+
+第二步：配置系统默认语言环境
+接下来，需要配置系统的语言环境（Locale）为中文。
+
+方案一：直接编辑配置文件（推荐）
+
+使用 nano 编辑器打开系统的 locale 配置文件：
+
+bash
+sudo nano /etc/default/locale
+将文件中的内容替换为以下几行。这能让系统在Xfce、xrdp等各种环境下都优先显示中文。
+
+bash
+LANG="zh_CN.UTF-8"
+LANGUAGE="zh_CN:zh"
+LC_ALL="zh_CN.UTF-8"
+按 Ctrl+X 键，然后按 Y 键，最后按回车键保存并退出。
+
+方案二：使用配置工具（备选）
+你也可以使用 dpkg-reconfigure locales 工具。
+
+运行 sudo dpkg-reconfigure locales。
+
+在列表中，用空格键选中 zh_CN.UTF-8 UTF-8，然后用 Tab 键切换到 <Ok> 并回车。
+
+在下一个界面，将 zh_CN.UTF-8 选为默认语言，然后回车确认。
+
+第三步：让环境变量生效
+为了让当前终端会话和未来的xrdp会话都使用新的中文环境，执行以下命令：
+
+bash
+# 为当前会话设置临时环境变量
+export LANG="zh_CN.UTF-8"
+export LANGUAGE="zh_CN:zh"
+export LC_ALL="zh_CN.UTF-8"
+
+# 将中文环境写入用户配置文件，确保登录后生效
+echo 'export LANG="zh_CN.UTF-8"' >> ~/.profile
+echo 'export LANGUAGE="zh_CN:zh"' >> ~/.profile
+echo 'export LC_ALL="zh_CN.UTF-8"' >> ~/.profile
+第四步：重启xrdp服务并重新连接
+现在重启xrdp服务，让所有修改生效。这是最关键的一步。
+
+bash
+sudo systemctl restart xrdp
+完成后，请断开当前的远程桌面会话，然后重新连接一次。重新登录后，你会发现XFCE4的菜单、标题栏、设置窗口等都已经变成中文了。
+
+
+
+
+安装浏览器
+
+sudo apt install chromium-browser
+
+为当前 root 用户添加强制参数（临时方案）
+这是一个快速的变通方法，能立刻解决启动问题。但请注意，这会关闭 Chromium 的关键安全防护，风险较高，如果只是临时访问可信网站，可以酌情考虑。
+
+用 --no-sandbox 参数启动 Chromium：
+
+bash
+chromium-browser --no-sandbox
+你也可以编辑 .bashrc 文件添加别名，让每次输入 chromium 时自动添加该参数，避免重复输入。
+
+⚠️ 安全警告：使用 --no-sandbox 意味着放弃了 Chromium 的多层安全隔离。禁止使用此模式访问任何来路不明的网站。
+
+
+
+
+
+
+
+
+
+
+
+
+
+使用 阿里云镜像（对 ARM 架构支持较好）：
+
+bash
+# 备份原始源列表
+sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
+
+# 替换为阿里云 Ubuntu Ports 源
+sudo tee /etc/apt/sources.list << 'EOF'
+deb http://mirrors.aliyun.com/ubuntu-ports/ focal main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu-ports/ focal-security main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu-ports/ focal-updates main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu-ports/ focal-backports main restricted universe multiverse
+EOF
+
+# 更新索引
+sudo apt update
+或者使用 中科大源（也很稳定）：
+
+bash
+sudo tee /etc/apt/sources.list << 'EOF'
+deb http://mirrors.ustc.edu.cn/ubuntu-ports/ focal main restricted universe multiverse
+deb http://mirrors.ustc.edu.cn/ubuntu-ports/ focal-security main restricted universe multiverse
+deb http://mirrors.ustc.edu.cn/ubuntu-ports/ focal-updates main restricted universe multiverse
+deb http://mirrors.ustc.edu.cn/ubuntu-ports/ focal-backports main restricted universe multiverse
+EOF
+sudo apt update
