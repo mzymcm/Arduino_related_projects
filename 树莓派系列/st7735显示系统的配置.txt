@@ -127,8 +127,13 @@ gpio=24=op,dh 是 config.txt 中设置 GPIO 初始状态的语法：op 表示输
 
 如果屏幕仍然不亮，可以尝试降低 speed 到 16000000（16MHz），树莓派 1B 的 SPI 稳定性可能有限。
 
-sudo nano /boot/cmdline.txt
+sudo nano /boot/firmware/cmdline.txt
 console=serial0,115200 console=tty1 root=PARTUUID=22d2bae7-02 rootfstype=ext4 fsck.repair=yes rootwait fbcon=map:0 fbcon=font:VGA8x8
+
+root@mzy:~# ls /dev/fb*
+/dev/fb0  /dev/fb1
+fbcon=map:1 fbcon=font:VGA8x8
+
 
 
 
@@ -235,5 +240,25 @@ sudo apt install raspberrypi-kernel raspberrypi-firmware
 
 
 
-apt-get install linux-headers-$(uname -r)
+apt-get install linux-headers-$(uname -r)  这个不能用，用下面的方法
 
+sudo apt install linux-headers-rpi-{v6，v7，v7l}
+
+sudo apt install linux-headers-rpi-v6
+
+
+
+
+
+
+
+
+
+
+Dietpi 下驱动st7735 128x128屏显示终端信息的方法
+
+
+查 sysfs 设备信息
+
+cat /sys/class/graphics/fb0/name
+cat /sys/class/graphics/fb1/name
