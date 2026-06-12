@@ -17,8 +17,9 @@ ssd:AlxaTax-2		pws:alssw0483
 
 安装必要的软件包和库：
 sudo apt update
-sudo apt install python3-pip python3-pil
-sudo pip3 install luma.lcd RPi.GPIO
+sudo apt install python3-pip python3-rpi.gpio python3-spidev python3-pil -y
+sudo apt install python3-luma.lcd
+
 编写 Python 脚本 st7735_info.py：
 将以下代码复制到一个新文件中。它演示了如何初始化屏幕、点亮背光并显示一些系统信息（如时间、CPU温度等）。你可以根据需要修改脚本。
 
@@ -199,66 +200,29 @@ cat /dev/urandom > /dev/fb1
 
 
 如果以上报错，采用以下方案
-
-
-方案：用 staging fbtft 驱动（不依赖 overlay）
-bash
-复制
-# 1. 先加载 ST7735R 的 framebuffer 驱动模块
-sudo modprobe fb_st7735r
-bash
-复制
-# 2. 加载 fbtft 核心模块 + 注册 SPI 设备（cs=0 即 CE0）
-sudo modprobe fbtft custom name=fb_st7735r busnum=0 cs=0 gpios=reset:27,dc:25 speed=16000000
-
-# 如果不支持 gpios 参数，试试这个格式：
-sudo modprobe fbtft custom name=fb_st7735r busnum=0 cs=0
-
-
-
-sudo apt install fbset
-
-
-
-
-
-
-
-如果设备树中没有这个小屏，可以用以下方法：
-
-配置官方源，安装完整内核（最可靠）
-由于 DietPi 精简版可能缺少所需驱动，最稳妥的方法是添加树莓派官方软件源，安装完整的内核和固件包。
-
-备份现有源列表：
-sudo cp /etc/apt/sources.list.d/raspi.list /etc/apt/sources.list.d/raspi.list.bak
-添加树莓派官方源：Debian 13 对应的是 “Trixie” 版本。
-echo "deb http://archive.raspberrypi.org/debian/ trixie main" | sudo tee /etc/apt/sources.list.d/raspi.list
-导入官方公钥并安装：
-wget -O - https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | sudo apt-key add -
-sudo apt update
-sudo apt install raspberrypi-kernel raspberrypi-firmware
-
-
-
-apt-get install linux-headers-$(uname -r)  这个不能用，用下面的方法
-
-sudo apt install linux-headers-rpi-{v6，v7，v7l}
-
-sudo apt install linux-headers-rpi-v6
-
-
-
-
-
-
-
-
-
-
 Dietpi 下驱动st7735 128x128屏显示终端信息的方法
-
-
 查 sysfs 设备信息
-
 cat /sys/class/graphics/fb0/name
 cat /sys/class/graphics/fb1/name
+
+sudo nano /boot/firmware/config.txt
+dtoverlay=fbtft,adafruit18,dc_pin=25,reset_pin=27,led_pin=24,speed=16000000,rotate=0,fps=30
+或
+dtoverlay=fbtft,sainsmart18,dc_pin=25,reset_pin=27,led_pin=24,speed=16000000,rotate=0,width=128,height=128
+
+sudo nano /boot/firmware/cmdline.txt
+增加：fbcon=map:1 fbcon=font:VGA8x8
+
+
+sudo modprobe fbtft
+sudo modprobe fb_st7735r
+echo "fb_st7735r" | sudo tee /sys/bus/spi/devices/spi0.0/driver_override
+echo spi0.0 | sudo tee /sys/bus/spi/drivers_probe
+
+为了确保参数名一字不差，快速反编译一下：
+dtc -I dtb -O dts /boot/firmware/overlays/fbtft.dtbo 2>/dev/null | grep -A 20 "__overrides__"
+
+检查驱动加载情况：
+dmesg | grep -i "fbtft\|fb_st7735r"
+
+
