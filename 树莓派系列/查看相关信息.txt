@@ -1,0 +1,14 @@
+root@DietPi:~# free -h
+               total        used        free      shared  buff/cache   available
+Mem:           474Mi        56Mi       346Mi       1.6Mi        82Mi       418Mi
+Swap:          1.5Gi          0B       1.5Gi
+从您提供的 free -h 输出可以看到：
+Mem:           474Mi
+这个数值非常接近 512MB（通常系统会保留一部分内存给 GPU 或内核使用，所以可用内存显示为 474MiB）。因此，您的树莓派 1B 拥有 512MB 的物理内存。
+
+
+root@DietPi:~# cat /proc/meminfo | head -n1
+MemTotal:         486076 kB
+
+cat /proc/meminfo | head -n1
+输出类似 MemTotal: 474816 kB，再次确认为 512MB 型号。
