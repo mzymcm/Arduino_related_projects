@@ -65,6 +65,8 @@ sudo nmcli dev wifi connect "CMCC-gyHQ" --ask
 启动自动联网
 sudo nmcli connection modify "CMCC-gyHQ" connection.autoconnect yes
 
+sudo nmcli dev wifi connect "CMCC-gyHQ" password "2fw5f8g7"
+
 
 ############# 蓝牙控制信息
 root@orangepiprime:~# hciconfig -a
