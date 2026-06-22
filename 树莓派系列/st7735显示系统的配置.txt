@@ -9,7 +9,7 @@ SDA/MOSI		GPIO10 (MOSI)			引脚19
 DC/A0			GPIO25					引脚22
 CS				GPIO8 (CE0)				引脚24
 RESET			GPIO27					引脚13
-LED				GPIO24					引脚18
+LED				GPIO23					引脚18
 
 
 ssd:AlxaTax-2		pws:alssw0483
@@ -38,8 +38,8 @@ device = st7735(serial, rotate=0, width=128, height=128)
 # 初始化背光GPIO
 import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(24, GPIO.OUT)
-GPIO.output(24, GPIO.HIGH)
+GPIO.setup(23, GPIO.OUT)
+GPIO.output(23, GPIO.HIGH)
 
 def get_cpu_temp():
     try:
@@ -93,7 +93,7 @@ SDA/MOSI		GPIO10 (MOSI)			引脚19
 DC/A0			GPIO25					引脚22
 CS				GPIO8 (CE0)				引脚24
 RESET			GPIO27					引脚13
-LED				GPIO24					引脚18
+LED				GPIO23					引脚18
 
 
 # 1. 安装设备树编译器
@@ -122,9 +122,9 @@ dtparam=spi=on
 # 加载 ST7735 驱动，分辨率 128x128
 dtoverlay=adafruit-st7735r,128x128,reset_pin=27,dc_pin=25,speed=32000000
 
-# 开机后点亮背光（GPIO24 高电平）
-gpio=24=op,dh
-gpio=24=op,dh 是 config.txt 中设置 GPIO 初始状态的语法：op 表示输出模式，dh 表示初始高电平。这样开机就会自动点亮背光，无需额外脚本。
+# 开机后点亮背光（GPIO23 高电平）
+gpio=23=op,dh
+gpio=23=op,dh 是 config.txt 中设置 GPIO 初始状态的语法：op 表示输出模式，dh 表示初始高电平。这样开机就会自动点亮背光，无需额外脚本。
 
 如果屏幕仍然不亮，可以尝试降低 speed 到 16000000（16MHz），树莓派 1B 的 SPI 稳定性可能有限。
 
@@ -171,7 +171,7 @@ sudo reboot
 4. 验证
 重启后，你应该看到：
 
-屏幕背光亮起（如果没亮，检查 GPIO24 接线或尝试手动 raspi-gpio set 24 op dh）。
+屏幕背光亮起（如果没亮，检查 GPIO23 接线或尝试手动 raspi-gpio set 23 op dh）。
 
 系统会产生一个新的 framebuffer 设备：/dev/fb1（/dev/fb0 通常是 HDMI 或复合视频输出）。
 
@@ -206,9 +206,9 @@ cat /sys/class/graphics/fb0/name
 cat /sys/class/graphics/fb1/name
 
 sudo nano /boot/firmware/config.txt
-dtoverlay=fbtft,adafruit18,dc_pin=25,reset_pin=27,led_pin=24,speed=16000000,rotate=0,fps=30
+dtoverlay=fbtft,adafruit18,dc_pin=25,reset_pin=27,led_pin=23,speed=16000000,rotate=0,fps=30
 或
-dtoverlay=fbtft,sainsmart18,dc_pin=25,reset_pin=27,led_pin=24,speed=16000000,rotate=0,width=128,height=128
+dtoverlay=fbtft,sainsmart18,dc_pin=25,reset_pin=27,led_pin=23,speed=16000000,rotate=0,width=128,height=128
 
 
 sudo nano /boot/firmware/cmdline.txt
@@ -227,3 +227,80 @@ dtc -I dtb -O dts /boot/firmware/overlays/fbtft.dtbo 2>/dev/null | grep -A 20 "_
 dmesg | grep -i "fbtft\|fb_st7735r"
 
 
+
+
+
+
+
+#######===== 驱动ST7789 2.0寸 320x240
+sudo nano /boot/firmware/config.txt
+
+dtoverlay=fbtft,spi0-0,st7789v,dc_pin=25,reset_pin=27,led_pin=23,speed=24000000,rotate=90,width=240,height=320,buswidth=8,bgr,invert,fps=30
+
+
+
+使用 fbtft 驱动，直接指定控制器 st7789v，显式设置旋转后的尺寸、BGR 和反转模式，解决了所有颜色、杂条问题。现在只需把终端映射和开机自启设置好，就能投入日常使用。
+
+最终配置（保留在 /boot/firmware/config.txt）
+
+dtparam=spi=on
+dtoverlay=fbtft,spi0-0,st7789v,dc_pin=25,reset_pin=27,led_pin=23,speed=24000000,rotate=90,width=240,height=320,buswidth=8,bgr,invert,fps=30
+说明：
+
+spi0-0 → 使用 SPI0、片选 CE0（你的接线）
+
+st7789v → 控制器名，使用驱动内置初始化
+
+dc_pin、reset_pin、led_pin → 匹配你的 GPIO
+
+speed=24000000 → 24 MHz，稳定；可尝试 32000000 提升刷新率
+
+rotate=90 → 竖屏方向（可根据需要改为 0/180/270）
+
+width=240,height=320 → 旋转后的正确尺寸，消除杂边
+
+bgr,invert → 修正红蓝互换和黑白颠倒
+
+buswidth=8 → 确保数据宽度正确
+
+fps=30 → 每秒最大帧数
+
+终端映射与尺寸设置
+1. 安装工具并映射
+bash
+sudo apt install kbd
+sudo con2fbmap 1 1          # fbtft 通常生成 /dev/fb1
+2. 设置终端大小
+竖屏 240×320，默认字体 8×16，行列数为：
+
+列数：240 ÷ 8 = 30
+
+行数：320 ÷ 16 = 20
+
+bash
+sudo stty cols 30 rows 20 -F /dev/tty1
+echo "Hello, ST7789!" | sudo tee /dev/tty1
+文字应完整显示，无超出。
+
+永久生效（开机自动映射）
+编辑 /etc/rc.local：
+
+bash
+sudo nano /etc/rc.local
+在 exit 0 之前插入：
+
+bash
+con2fbmap 1 1
+sleep 1
+stty cols 30 rows 20 -F /dev/tty1
+保存退出。
+
+可选优化
+提高刷新率：将 speed 升到 32000000，若出现杂点则回退到 24000000。
+
+方向调整：若想横屏（320×240），设置 rotate=0 或 rotate=270，并调整终端尺寸为 cols 40 rows 15。
+
+背光控制：LED 引脚已由驱动管理，可进一步通过 /sys/class/backlight 调节亮度（如有生成）
+
+
+root@DietPi:~# fbi -d /dev/fb1 -a /home/dietpi/test.jpg

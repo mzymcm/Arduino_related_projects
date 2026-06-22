@@ -1,0 +1,16 @@
+开发板是：Orange Pi Prime 全志H5Cortex-A53四核64位,2GB DDR3内存,板载WiFi 蓝牙
+安装的系统是：Orange Pi 2.1.2 Buster with Linux 5.4.65-sunxi64
+需要驱动的设备为：ST7789 320x240 的2寸屏
+ST7789引脚是：BL、CS、DC、RST、SDA、SCL、VCC、GND
+屏幕引脚	功能	Orange Pi Prime 物理引脚	对应的 GPIO（功能）
+VCC	3.3V 电源	1 或 17	3.3V
+GND	地	6 或 25	GND
+SCL	SPI 时钟	23	SCLK.1
+SDA	SPI 数据	19	MOSI.1
+RST	复位	31	PA08
+DC	数据/命令	33	PA09
+CS	SPI 片选	24	CE.1
+BL	背光	35	PA10
+需求是：通过设备树控制实现系统控制台映射到屏幕
+现在根据你的高水平，给出一套详细的步骤和方法及代码。
+你可以参考上传的手册。
