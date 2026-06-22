@@ -210,6 +210,7 @@ dtoverlay=fbtft,adafruit18,dc_pin=25,reset_pin=27,led_pin=24,speed=16000000,rota
 或
 dtoverlay=fbtft,sainsmart18,dc_pin=25,reset_pin=27,led_pin=24,speed=16000000,rotate=0,width=128,height=128
 
+
 sudo nano /boot/firmware/cmdline.txt
 增加：fbcon=map:1 fbcon=font:VGA8x8
 
