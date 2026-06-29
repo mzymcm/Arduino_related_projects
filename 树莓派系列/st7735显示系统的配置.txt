@@ -1,15 +1,15 @@
 第一种，使用python 来测试st7735
 
 1. 确认接线
-屏幕引脚			树莓派 GPIO (BCM)		物理引脚
-VCC				3.3V					引脚1
-GND			GND					引脚6
-SCK/SCLK		GPIO11 (SCLK)			引脚23
-SDA/MOSI		GPIO10 (MOSI)			引脚19
-DC/A0			GPIO25					引脚22
-CS				GPIO8 (CE0)				引脚24
-RESET			GPIO27					引脚13
-LED				GPIO23					引脚18
+屏幕引脚			树莓派功能名称			物理引脚（Board编码）	BCM编码
+VCC				3.3V					引脚17					--
+GND			GND					引脚25					--
+SCK/SCLK		SCLK					引脚23					11
+SDA/MOSI		MOSI					引脚19					10
+DC/A0			GPIO.3					引脚15					22
+CS				CE0						引脚24					8
+RESET			GPIO.2					引脚13					27
+LED				GPIO.0					引脚11					17
 
 
 ssd:AlxaTax-2		pws:alssw0483
@@ -85,15 +85,15 @@ python3 st7735_info.py
 Linux raspberrypi 6.1.21+ #1642 Mon Apr  3 17:19:14 BST 2023 armv6l GNU/Linux
 
 1. 确认接线
-屏幕引脚			树莓派 GPIO (BCM)		物理引脚
-VCC				3.3V					引脚1
-GND			GND					引脚6
-SCK/SCLK		GPIO11 (SCLK)			引脚23
-SDA/MOSI		GPIO10 (MOSI)			引脚19
-DC/A0			GPIO25					引脚22
-CS				GPIO8 (CE0)				引脚24
-RESET			GPIO27					引脚13
-LED				GPIO23					引脚18
+屏幕引脚			树莓派功能名称			物理引脚（Board编码）	BCM编码
+VCC				3.3V					引脚17					--
+GND			GND					引脚25					--
+SCK/SCLK		SCLK					引脚23					11
+SDA/MOSI		MOSI					引脚19					10
+DC/A0			GPIO.3					引脚15					22
+CS				CE0						引脚24					8
+RESET			GPIO.2					引脚13					27
+LED				GPIO.1					引脚11					17
 
 
 # 1. 安装设备树编译器
@@ -120,10 +120,10 @@ dtparam=spi=on
 # dtoverlay=vc4-kms-v3d
 
 # 加载 ST7735 驱动，分辨率 128x128
-dtoverlay=adafruit-st7735r,128x128,reset_pin=27,dc_pin=25,speed=32000000
+dtoverlay=adafruit-st7735r,128x128,reset_pin=27,dc_pin=22,speed=32000000
 
 # 开机后点亮背光（GPIO23 高电平）
-gpio=23=op,dh
+gpio=17=op,dh
 gpio=23=op,dh 是 config.txt 中设置 GPIO 初始状态的语法：op 表示输出模式，dh 表示初始高电平。这样开机就会自动点亮背光，无需额外脚本。
 
 如果屏幕仍然不亮，可以尝试降低 speed 到 16000000（16MHz），树莓派 1B 的 SPI 稳定性可能有限。
@@ -304,3 +304,348 @@ stty cols 30 rows 20 -F /dev/tty1
 
 
 root@DietPi:~# fbi -d /dev/fb1 -a /home/dietpi/test.jpg
+
+
+
+
+
+
+
+
+
+sudo apt-get install build-essential
+sudo apt-get install --reinstall libjpeg-dev
+
+
+git clone https://github.com/WiringPi/WiringPi.git
+cd WiringPi
+./build
+
+
+
+# 以清华源为例，下载三个包
+wget http://mirrors.tuna.tsinghua.edu.cn/raspbian/raspbian/pool/main/libj/libjpeg-turbo/libjpeg62-turbo_2.1.5-4_armhf.deb
+wget http://mirrors.tuna.tsinghua.edu.cn/raspbian/raspbian/pool/main/libj/libjpeg-turbo/libjpeg62-turbo-dev_2.1.5-4_armhf.deb
+wget http://mirrors.tuna.tsinghua.edu.cn/raspbian/raspbian/pool/main/libj/libjpeg-turbo/libjpeg-dev_2.1.5-4_armhf.deb
+
+# 安装
+sudo dpkg -i *.deb
+
+
+
+sudo nano display.c
+
+===================================== display.c Begin
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <jpeglib.h>      // 需要 libjpeg-dev
+#include <wiringPi.h>
+#include <wiringPiSPI.h>
+
+// ========== 配置选项 ==========
+#define TEST_STRIPES  0    // 1: 显示彩色条纹（测试）, 0: 显示JPEG图片
+#define USE_HARDWARE_SPI 1 // 1: 硬件SPI, 0: 软件SPI（备用）
+#define SPI_SPEED     500000  // 硬件SPI速率（Hz），可调至1MHz
+
+// 引脚定义（BCM编号）
+#define PIN_DC     22
+#define PIN_RST    27
+#define PIN_LED    17
+#define PIN_SCK    11   // 软件SPI用（若使用）
+#define PIN_MOSI   10
+
+#define WIDTH  128
+#define HEIGHT 128
+
+// ST7735命令（与之前相同）
+#define ST7735_SWRESET 0x01
+#define ST7735_SLPOUT  0x11
+#define ST7735_NORON   0x13
+#define ST7735_DISPON  0x29
+#define ST7735_CASET   0x2A
+#define ST7735_RASET   0x2B
+#define ST7735_RAMWR   0x2C
+#define ST7735_COLMOD  0x3A
+#define ST7735_MADCTL  0x36
+#define ST7735_FRMCTR1 0xB1
+#define ST7735_FRMCTR2 0xB2
+#define ST7735_FRMCTR3 0xB3
+#define ST7735_INVCTR  0xB4
+#define ST7735_PWCTR1  0xC0
+#define ST7735_PWCTR2  0xC1
+#define ST7735_PWCTR3  0xC2
+#define ST7735_PWCTR4  0xC3
+#define ST7735_PWCTR5  0xC4
+#define ST7735_VMCTR1  0xC5
+#define ST7735_GMCTRP1 0xE0
+#define ST7735_GMCTRN1 0xE1
+
+// ---------- 底层写函数（支持硬件/软件SPI） ----------
+static void sw_spi_write(uint8_t data) {
+    for (int i = 7; i >= 0; i--) {
+        digitalWrite(PIN_SCK, LOW);
+        digitalWrite(PIN_MOSI, (data >> i) & 1);
+        digitalWrite(PIN_SCK, HIGH);
+    }
+}
+
+static void st7735_write_cmd(uint8_t cmd) {
+    digitalWrite(PIN_DC, LOW);
+#if USE_HARDWARE_SPI
+    wiringPiSPIDataRW(0, &cmd, 1);
+#else
+    sw_spi_write(cmd);
+#endif
+}
+
+static void st7735_write_data(uint8_t data) {
+    digitalWrite(PIN_DC, HIGH);
+#if USE_HARDWARE_SPI
+    wiringPiSPIDataRW(0, &data, 1);
+#else
+    sw_spi_write(data);
+#endif
+}
+
+static void st7735_write_data_array(uint8_t *data, int len) {
+    digitalWrite(PIN_DC, HIGH);
+#if USE_HARDWARE_SPI
+    wiringPiSPIDataRW(0, data, len);
+#else
+    for (int i = 0; i < len; i++) sw_spi_write(data[i]);
+#endif
+}
+
+// ---------- 屏幕初始化（已验证） ----------
+static void st7735_init(void) {
+    printf("初始化屏幕...\n");
+    digitalWrite(PIN_RST, HIGH);
+    delay(10);
+    digitalWrite(PIN_RST, LOW);
+    delay(10);
+    digitalWrite(PIN_RST, HIGH);
+    delay(150);
+
+    st7735_write_cmd(ST7735_SWRESET);
+    delay(150);
+
+    st7735_write_cmd(ST7735_SLPOUT);
+    delay(500);
+
+    st7735_write_cmd(ST7735_FRMCTR1);
+    uint8_t fr1[] = {0x01, 0x2C, 0x2D};
+    st7735_write_data_array(fr1, 3);
+
+    st7735_write_cmd(ST7735_FRMCTR2);
+    uint8_t fr2[] = {0x01, 0x2C, 0x2D};
+    st7735_write_data_array(fr2, 3);
+
+    st7735_write_cmd(ST7735_FRMCTR3);
+    uint8_t fr3[] = {0x01, 0x2C, 0x2D, 0x01, 0x2C, 0x2D};
+    st7735_write_data_array(fr3, 6);
+
+    st7735_write_cmd(ST7735_INVCTR);
+    st7735_write_data(0x07);
+
+    st7735_write_cmd(ST7735_PWCTR1);
+    uint8_t pw1[] = {0xA2, 0x02, 0x84};
+    st7735_write_data_array(pw1, 3);
+
+    st7735_write_cmd(ST7735_PWCTR2);
+    st7735_write_data(0xC5);
+
+    st7735_write_cmd(ST7735_PWCTR3);
+    uint8_t pw3[] = {0x0A, 0x00};
+    st7735_write_data_array(pw3, 2);
+
+    st7735_write_cmd(ST7735_PWCTR4);
+    uint8_t pw4[] = {0x8A, 0x2A};
+    st7735_write_data_array(pw4, 2);
+
+    st7735_write_cmd(ST7735_PWCTR5);
+    uint8_t pw5[] = {0x8A, 0xEE};
+    st7735_write_data_array(pw5, 2);
+
+    st7735_write_cmd(ST7735_VMCTR1);
+    st7735_write_data(0x0E);
+
+    st7735_write_cmd(ST7735_GMCTRP1);
+    uint8_t gm_pos[] = {0x0F, 0x1A, 0x0F, 0x18, 0x2F, 0x28, 0x20, 0x22, 0x1F, 0x1B, 0x23, 0x37, 0x00, 0x07, 0x02, 0x10};
+    st7735_write_data_array(gm_pos, 16);
+
+    st7735_write_cmd(ST7735_GMCTRN1);
+    uint8_t gm_neg[] = {0x0F, 0x1B, 0x0F, 0x17, 0x33, 0x2C, 0x29, 0x2E, 0x30, 0x30, 0x39, 0x3F, 0x00, 0x07, 0x03, 0x10};
+    st7735_write_data_array(gm_neg, 16);
+
+    st7735_write_cmd(ST7735_COLMOD);
+    st7735_write_data(0x05);
+
+    // 内存访问控制（若方向不对可修改：0x00, 0x60, 0xC0, 0xA0）
+    st7735_write_cmd(ST7735_MADCTL);
+    st7735_write_data(0xC8);
+
+    st7735_write_cmd(ST7735_CASET);
+    st7735_write_data(0x00);
+    st7735_write_data(0x00);
+    st7735_write_data(0x00);
+    st7735_write_data(0x7F);
+
+    st7735_write_cmd(ST7735_RASET);
+    st7735_write_data(0x00);
+    st7735_write_data(0x00);
+    st7735_write_data(0x00);
+    st7735_write_data(0x7F);
+
+    st7735_write_cmd(ST7735_NORON);
+    delay(10);
+    st7735_write_cmd(ST7735_DISPON);
+    delay(100);
+
+    digitalWrite(PIN_LED, HIGH);
+    printf("初始化完成\n");
+}
+
+// ---------- 绘制彩色条纹（测试用） ----------
+static void draw_stripes(void) {
+    uint16_t *buffer = (uint16_t *)malloc(WIDTH * HEIGHT * sizeof(uint16_t));
+    if (!buffer) return;
+    int stripe_width = WIDTH / 5;
+    uint16_t colors[5] = {0x0000, 0xFFFF, 0xF800, 0x07E0, 0x001F}; // 黑、白、红、绿、蓝
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            int idx = x / stripe_width;
+            if (idx >= 5) idx = 4;
+            buffer[y * WIDTH + x] = colors[idx];
+        }
+    }
+    st7735_write_cmd(ST7735_RAMWR);
+    for (int i = 0; i < WIDTH * HEIGHT; i++) {
+        uint8_t bytes[2] = {buffer[i] >> 8, buffer[i] & 0xFF};
+        st7735_write_data_array(bytes, 2);
+    }
+    free(buffer);
+}
+
+// ---------- JPEG 解码与转换 ----------
+static unsigned char *read_jpeg(const char *filename, int *width, int *height) {
+    FILE *file = fopen(filename, "rb");
+    if (!file) {
+        perror("打开JPEG失败");
+        return NULL;
+    }
+    struct jpeg_decompress_struct cinfo;
+    struct jpeg_error_mgr jerr;
+    cinfo.err = jpeg_std_error(&jerr);
+    jpeg_create_decompress(&cinfo);
+    jpeg_stdio_src(&cinfo, file);
+    jpeg_read_header(&cinfo, TRUE);
+    jpeg_start_decompress(&cinfo);
+
+    *width = cinfo.output_width;
+    *height = cinfo.output_height;
+    int row_stride = cinfo.output_width * cinfo.output_components;
+    unsigned char *buffer = (unsigned char *)malloc(row_stride * cinfo.output_height);
+    if (!buffer) {
+        jpeg_finish_decompress(&cinfo);
+        jpeg_destroy_decompress(&cinfo);
+        fclose(file);
+        return NULL;
+    }
+    unsigned char *row_ptr = buffer;
+    while (cinfo.output_scanline < cinfo.output_height) {
+        jpeg_read_scanlines(&cinfo, &row_ptr, 1);
+        row_ptr += row_stride;
+    }
+    jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    fclose(file);
+    return buffer;
+}
+
+static uint16_t *jpeg_to_rgb565(const char *filename) {
+    int img_w, img_h;
+    unsigned char *rgb24 = read_jpeg(filename, &img_w, &img_h);
+    if (!rgb24) return NULL;
+
+    int w = (img_w < WIDTH) ? img_w : WIDTH;
+    int h = (img_h < HEIGHT) ? img_h : HEIGHT;
+
+    uint16_t *rgb565 = (uint16_t *)malloc(WIDTH * HEIGHT * sizeof(uint16_t));
+    if (!rgb565) { free(rgb24); return NULL; }
+    memset(rgb565, 0, WIDTH * HEIGHT * sizeof(uint16_t));
+
+    for (int y = 0; y < h; y++) {
+        unsigned char *row = rgb24 + y * img_w * 3;
+        uint16_t *dest = rgb565 + y * WIDTH;
+        for (int x = 0; x < w; x++) {
+            unsigned char r = row[x*3], g = row[x*3+1], b = row[x*3+2];
+            dest[x] = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+        }
+    }
+    free(rgb24);
+    return rgb565;
+}
+
+static void draw_image(uint16_t *data) {
+    st7735_write_cmd(ST7735_RAMWR);
+    for (int i = 0; i < WIDTH * HEIGHT; i++) {
+        uint8_t bytes[2] = {data[i] >> 8, data[i] & 0xFF};
+        st7735_write_data_array(bytes, 2);
+    }
+}
+
+// ---------- 主函数 ----------
+int main(void) {
+    if (wiringPiSetupGpio() == -1) {
+        fprintf(stderr, "WiringPi初始化失败\n");
+        return 1;
+    }
+
+    pinMode(PIN_DC, OUTPUT);
+    pinMode(PIN_RST, OUTPUT);
+    pinMode(PIN_LED, OUTPUT);
+
+#if USE_HARDWARE_SPI
+    if (wiringPiSPISetup(0, SPI_SPEED) == -1) {
+        fprintf(stderr, "硬件SPI初始化失败\n");
+        return 1;
+    }
+#else
+    pinMode(PIN_SCK, OUTPUT);
+    pinMode(PIN_MOSI, OUTPUT);
+#endif
+
+    st7735_init();
+
+#if TEST_STRIPES
+    draw_stripes();
+    printf("彩色条纹显示完成\n");
+#else
+    const char *filename = "smp.jpg";
+    printf("正在读取并显示图片: %s\n", filename);
+    uint16_t *image = jpeg_to_rgb565(filename);
+    if (!image) {
+        fprintf(stderr, "图片加载失败，请确保 %s 存在且为有效JPEG\n", filename);
+        return 1;
+    }
+    draw_image(image);
+    free(image);
+    printf("图片显示完成\n");
+#endif
+
+    return 0;
+}
+
+
+
+===================================== display.c End
+
+
+
+
+gcc -o display display.c -std=gnu99 -lwiringPi -ljpeg -lm
+sudo ./display
